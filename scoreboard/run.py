@@ -9,6 +9,7 @@ import datetime
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -22,10 +23,61 @@ from scoreboard.verdict import judge
 SETUP_TIMEOUT = 900  # browser downloads can be slow
 
 
+def processes():
+    """{pid: (parent pid, session id)} for every live process. Linux only, empty elsewhere."""
+    table = {}
+    for stat in Path("/proc").glob("[0-9]*/stat"):
+        try:
+            fields = stat.read_text().rsplit(")", 1)[1].split()
+        except OSError:
+            continue  # the process ended while we looked
+        if fields[0] != "Z":  # Z: already dead, only waiting to be collected
+            table[int(stat.parent.name)] = (int(fields[1]), int(fields[3]))
+    return table
+
+
+def started_by(root):
+    """Every live process that root started, directly or not, or that shares its session.
+
+    One rule is not enough. Playwright starts browsers in a session of their own,
+    so the session misses them and only the parent chain finds them. A child whose
+    parent already exited has lost that chain, and only the session finds it."""
+    table = processes()
+    found = {pid for pid, (_, session) in table.items() if session == root or pid == root}
+    grew = True
+    while grew:
+        more = {pid for pid, (parent, _) in table.items() if parent in found or parent == root} - found
+        found |= more
+        grew = bool(more)
+    return found
+
+
+def kill_all(root):
+    """Kill everything root started and wait until it is gone. Waiting matters:
+    a dying browser must not write into its profile folder while that folder
+    is being deleted."""
+    pids = started_by(root)
+    for _ in range(50):
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        alive = processes()
+        pids = {pid for pid in pids if pid in alive} | started_by(root)
+        if not pids:
+            break
+        time.sleep(0.1)
+    try:
+        os.killpg(root, signal.SIGKILL)  # for systems without /proc
+    except ProcessLookupError:
+        pass
+
+
 def call(cmd, timeout, cwd=None, env=None):
-    """Run cmd in its own process group. Return (returncode, stdout, stderr).
-    returncode is None on timeout. The whole group is always killed at the end,
-    so no browser is left running."""
+    """Run cmd in its own session. Return (returncode, stdout, stderr).
+    returncode is None on timeout. Everything the command started is always
+    killed at the end, so no browser is left running."""
     with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True, cwd=cwd, env=env) as p:
         try:
             out, err = p.communicate(timeout=timeout)
@@ -33,10 +85,7 @@ def call(cmd, timeout, cwd=None, env=None):
         except subprocess.TimeoutExpired:
             return None, "", f"timeout after {timeout}s"
         finally:
-            try:
-                os.killpg(p.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            kill_all(p.pid)
 
 
 def scrub(text):
@@ -50,7 +99,8 @@ def scrub(text):
 
 def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
     """One try. Return (status, html, clicked, error)."""
-    with tempfile.TemporaryDirectory() as tmp:
+    # A killed browser can still be writing while the folder is removed. That must not stop the run.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         # TMPDIR points into the temporary folder, so browser profiles land there and
         # are deleted with it, also when the browser was killed.
         env = os.environ | {"SCOREBOARD_CLICK": "1" if click else "0", "TMPDIR": tmp}
@@ -60,6 +110,7 @@ def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
         if not outfile.exists():
             return None, "", False, scrub(err) if err.strip() else f"adapter exit code {code}"
         result = json.loads(outfile.read_text())
+    shutil.rmtree(tmp, ignore_errors=True)  # a second sweep, in case a dying browser wrote one more file
     if debug_file:
         debug_file.parent.mkdir(parents=True, exist_ok=True)
         debug_file.write_text(result["html"])

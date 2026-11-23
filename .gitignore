@@ -1,4 +1,6 @@
 __pycache__/
 debug/
+# results of quick local tries. Use --runner with another name for results you want to keep.
+results/*/local__*.json
 .venv/
 site/data.json

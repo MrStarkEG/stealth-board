@@ -37,7 +37,7 @@ The top of each script lists its dependencies:
 
 1. Run `setup`. If it fails, save the tool as **broken** and go on to the next tool.
 2. For each mode, target and try, run `fetch` as a new process.
-3. Kill the whole process group afterwards, so no browser stays behind. A fetch that takes longer than `timeout` is killed and saved as an **error**.
+3. Kill everything the fetch started afterwards, so no browser stays behind. Temporary files, like the browser profile, go into a folder that is deleted after each fetch. A fetch that takes longer than `timeout` is killed and saved as an **error**.
 4. Pass the page to the verdict rules.
 
 Every fetch is a new process with a new empty browser profile. Nothing is shared between tries.
