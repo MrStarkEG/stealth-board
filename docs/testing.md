@@ -7,7 +7,7 @@ There are four levels. Each one is slower than the one before and closer to the 
 | 1. Config check | `python3 -m stealth_board.check` | nothing | under a second |
 | 2. Tests | `python3 -m unittest discover tests` | uv | about 10 seconds |
 | 3. Smoke run | `python3 -m stealth_board.run --target example --tries 1` | browsers, internet | a few minutes |
-| 4. Full run | `xvfb-run -a python3 -m stealth_board.run` | browsers, internet | hours |
+| 4. Full run | `xvfb-run -a python3 -m stealth_board.run` | browsers, internet | 1 to 3 hours |
 
 Levels 1 and 2 also run on GitHub for every push and pull request (`.github/workflows/tests.yml`).
 
@@ -23,8 +23,9 @@ They need no browser and no outside network. Everything runs against a small web
 |---|---|
 | `tests/test_verdict.py` | Each sample page in `tests/pages/` gets the right result: pass, challenge or blocked, with the right reason. |
 | `tests/test_check.py` | The real config is valid, every adapter file is listed in it, and the checker finds each kind of mistake. |
+| `tests/test_config.py` | The real config loads, and a bad one is refused with its problems listed. |
 | `tests/test_probe.py` | The website probe names the right vendor from headers and page text. |
-| `tests/test_run.py` | The runner end to end, with fake adapters in `tests/fake_adapters/`: a real page, a block page with status 200, a 403, a page that hangs, a setup that fails, a crash, a click that opens a challenge, a browser that must not stay alive after a timeout, and temporary files that must not stay behind. |
+| `tests/test_run.py` | The runner end to end, with fake adapters in `tests/fake_adapters/`: a real page, a block page with status 200, a 403, a page that hangs, a setup that fails, a crash, a click that opens a challenge, a browser that must not stay alive after a timeout, and temporary files that must not stay behind. Also the choice of how many tools run at the same time. |
 | `tests/test_build.py` | The 7 and 30 day numbers on made-up history, the marks on weak targets, and broken tools. |
 
 Run one file or one test:
@@ -87,13 +88,13 @@ Open the files in `debug/`. Take the `expect` text from a page where a tool got 
 
 The verdict rules know the block pages we have met so far. For a new one:
 
-1. Add its marker to `CHALLENGES` or `BLOCKS` in `stealth_board/verdict.py`. A challenge still asks for a check. A block is a plain no.
+1. Add its marker to `CHALLENGE_MARKERS` or `BLOCK_MARKERS` in `stealth_board/verdict.py`. A challenge still asks for a check. A block is a plain no.
 2. Save a small sample of the page in `tests/pages/`. Keep only the lines that matter, not the whole page.
 3. Add one line for it to `CASES` in `tests/test_verdict.py`.
 
 A test fails when a sample page has no case, so step 3 cannot be forgotten.
 
-For a new protection vendor, also add one line to `SIGNS` in `stealth_board/probe.py` and one case to `tests/test_probe.py`.
+For a new protection vendor, also add one line to `VENDOR_SIGNS` in `stealth_board/probe.py` and one case to `tests/test_probe.py`.
 
 ## Checking the click on a challenge box
 

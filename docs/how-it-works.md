@@ -63,11 +63,11 @@ Some challenge pages show a check box ("Verify you are human"). With `click = tr
 - it passed after the click
 - the click landed, and the site showed the check again
 
-Adapters with a Playwright-style page share one helper for this (`settle` in `adapters/_common.py`). Tools with their own solver use that instead, and their adapter says so at the top.
+Adapters with a Playwright-style page share one helper for this (`wait_and_click` in `adapters/_common.py`). Tools with their own solver use that instead, and their adapter says so at the top.
 
 ## 5. The results
 
-The runner writes one file per tool and day: `results/2026-11-21/github__patchright.json`.
+The runner writes one file per tool and day: `results/2026-11-21/vps__patchright.json`.
 
 The file holds the tool version, the date, the runner name, the IP type (datacenter or residential), if clicking was on, and every try. It never holds an IP address, a host name or a page.
 
@@ -80,11 +80,10 @@ The build also marks two kinds of weak targets:
 - a control opens it, so it has no real protection
 - no tool opened it for 7 days, so the target or its `expect` pattern may be out of date
 
-## 7. The daily run
+## 7. Running tools side by side
 
-`.github/workflows/daily.yml` runs on GitHub every day:
+Each tool is one job. Jobs run at the same time, as many as the free memory allows (one per 4 GB, at most 4), or as many as `--jobs` says. Inside a job, a tool opens one browser at a time, so two tries of the same tool never overlap.
 
-1. One job per tool runs the runner under a virtual screen.
-2. A last job collects the result files, commits them, builds `data.json`, and publishes `site/` to GitHub Pages.
+## 8. The daily run
 
-The workflow only calls the commands above, so anything that works on your machine works there.
+A cron job runs two commands once a day: the runner, then the build. A web server shows the `site/` folder. [deploy-on-a-server.md](deploy-on-a-server.md) has the details.

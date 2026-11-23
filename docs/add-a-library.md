@@ -16,7 +16,7 @@ Settings from its README: say which ones you used and why."""
 
 from somelib import Browser
 
-from _common import NAV_TIMEOUT_MS, SETTLE_MS, run
+from _common import NAV_TIMEOUT_MS, SETTLE_MS, run_adapter
 
 
 def fetch(url, headless):
@@ -29,14 +29,14 @@ def fetch(url, headless):
         browser.close()
 
 
-run("somelib", fetch, setup=[["somelib", "install"]])
+run_adapter("somelib", fetch, setup=[["somelib", "install"]])
 ```
 
 Rules:
 
 - `fetch(url, headless)` returns `(status, html)`. Raise an exception on failure, the runner saves it.
-- For the click on a challenge box, return `(status, html, clicked)`. With a Playwright-style page, call `clicked = settle(page)` from `_common` in place of the wait. If the library has its own solver, use it only when `CLICK` from `_common` is true, and return `None` for clicked when the solver does not say what it did.
-- `run(package, fetch, setup)`: `package` is the PyPI name, used to read the version. `setup` is a list of commands to run once, like downloading a browser. Leave it out when there is nothing to install.
+- For the click on a challenge box, return `(status, html, clicked)`. With a Playwright-style page, call `clicked = wait_and_click(page)` from `_common` in place of the wait. If the library has its own solver, use it only when `CLICK` from `_common` is true, and return `None` for clicked when the solver does not say what it did.
+- `run_adapter(package, fetch, setup)`: `package` is the PyPI name, used to read the version. `setup` is a list of commands to run once, like downloading a browser. Leave it out when there is nothing to install.
 - Use the settings the library's own README recommends, and write them in the docstring. The goal is a fair test of the library at its best.
 - Do not pin a version. The scoreboard tests the newest release.
 - Use a new empty profile for every fetch. Never point a tool at your own browser profile.
@@ -61,4 +61,4 @@ python3 -m stealth_board.run --tool somelib --tries 1
 
 The first command must pass. Run `python3 -m unittest discover tests` too: one test checks that every adapter file is listed in the config. `example` has no protection, so a failure there is a bug in the adapter.
 
-Then open a pull request. The daily workflow reads the tool list from the config, so it needs no change.
+Then open a pull request. The runner reads the tool list from the config, so nothing else needs a change.

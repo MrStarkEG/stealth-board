@@ -38,7 +38,7 @@ On a Wayland desktop, Chrome may still open its windows on your real screen. Put
 env -u WAYLAND_DISPLAY xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
 ```
 
-This takes a long time (9 tools, 12 targets, 3 tries, 2 modes). Use `--tool`, `--target`, `--mode` and `--tries` to make it smaller. Each one can be repeated.
+This takes one to three hours (9 tools, 12 targets, 3 tries, 2 modes). The runner tests several tools at the same time when there is enough free memory, one per 4 GB and at most 4. Set it yourself with `--jobs 2`, or use `--jobs 1` to run them one by one. Use `--tool`, `--target`, `--mode` and `--tries` to make it smaller. Each one can be repeated.
 
 Where results go: one file per tool, day and runner name, `results/DATE/RUNNER__TOOL.json`. A new run with the same runner name on the same day replaces that file. Quick tries use the default name `local`, and git ignores those files. So do not use `--runner home` for a partial run, or it replaces the full results of that day.
 
@@ -70,6 +70,6 @@ uv run adapters/NAME_adapter.py setup
 
 **Headed mode fails with "no display".** There is no screen to draw on. Use `xvfb-run -a`, or run headless only with `--mode headless --mode http`.
 
-**Memory.** Every fetch starts a browser and closes it again, and tools run one after another, so only one browser is open at a time.
+**Memory.** Every fetch starts a browser and closes it again. Each job has one browser open at a time, so `--jobs 1` means one browser in total.
 
 **My results differ from the dashboard.** That is expected. Your IP address, country and Chrome version are different.

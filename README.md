@@ -4,7 +4,7 @@ Which open source scraping library still gets past bot protection today?
 
 Stealth libraries break often. A new Chrome release or a new protection rule can stop one overnight, and nobody tells you. This project opens the same list of pages with every library once a day, using each library's newest release, and shows the results on one page.
 
-- It runs for free on GitHub Actions. There are no servers and no proxies.
+- It runs on any Linux machine with one daily command. There are no proxies and no backend.
 - The results are plain JSON files in this repo. There is no database.
 - The dashboard is one static HTML page.
 
@@ -52,7 +52,7 @@ The two **controls** have no stealth at all. If a control opens a protected targ
 
 - Each test is one page load from one IP address with no proxy. It says nothing about thousands of requests.
 - It loads one page. Logging in, clicking around, and other pages of the same site can be harder.
-- GitHub's machines have datacenter IPs, which protection systems trust the least. A home connection often does better. The dashboard keeps the two IP types apart.
+- Cloud servers have datacenter IPs, which protection systems trust the least. A home connection often does better. The dashboard keeps the two IP types apart.
 - Sites change their protection, so a target can get easier or harder with no change in the library.
 
 ## Try it on your machine
@@ -68,23 +68,26 @@ python3 -m stealth_board.build
 python3 -m http.server -d site 8000   # then open http://localhost:8000
 ```
 
+The runner tests several libraries at the same time when the machine has the memory for it. `--jobs 1` runs them one by one.
+
 The first run of a library downloads its browser, which can take a few minutes. More in [docs/run-locally.md](docs/run-locally.md).
 
 ## What is in this repo
 
 ```
-board.toml      the list of libraries and targets, and the run settings
-adapters/            one small script per library
-stealth_board/run.py    runs the libraries against the targets, writes results/
-stealth_board/verdict.py  decides pass, challenge or blocked
-stealth_board/build.py  turns results/ into site/data.json
-stealth_board/check.py  checks that board.toml is valid
-stealth_board/probe.py  looks at a new website before you add it
-site/index.html      the dashboard
-results/             one folder per day, one JSON file per library
-tests/               tests that run against a local web server, with sample block pages
-.github/workflows/   the daily run
-docs/                the guides below
+board.toml                 the libraries, the targets and the run settings
+adapters/                  one small script per library
+stealth_board/run.py       runs the libraries against the targets, writes results/
+stealth_board/verdict.py   decides pass, challenge or blocked
+stealth_board/build.py     turns results/ into site/data.json
+stealth_board/config.py    loads board.toml
+stealth_board/check.py     checks that board.toml is valid
+stealth_board/process.py   runs a command and kills everything it started
+stealth_board/probe.py     looks at a new website before you add it
+site/                      the dashboard: index.html, style.css, app.js
+results/                   one folder per day, one JSON file per library
+tests/                     tests against a local web server, with sample block pages
+docs/                      the guides below
 ```
 
 ## Guides
@@ -94,7 +97,7 @@ docs/                the guides below
 - [Testing](docs/testing.md): the four test levels, testing a new website, and the click on a challenge box
 - [Add a library](docs/add-a-library.md)
 - [Add a target](docs/add-a-target.md)
-- [Publish it on GitHub](docs/publish-on-github.md): the daily run and the dashboard
+- [Deploy it on a server](docs/deploy-on-a-server.md): the daily job, the dashboard, memory and speed
 - [Keeping it running](docs/maintenance.md): what runs on its own and what needs a person
 
 ## Why this exists, and fair use
