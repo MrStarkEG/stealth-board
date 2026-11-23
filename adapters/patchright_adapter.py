@@ -12,7 +12,7 @@ import tempfile
 
 from patchright.sync_api import sync_playwright
 
-from _common import NAV_TIMEOUT_MS, run, settle
+from _common import NAV_TIMEOUT_MS, run_adapter, wait_and_click
 
 
 def fetch(url, headless):
@@ -20,11 +20,13 @@ def fetch(url, headless):
         context = p.chromium.launch_persistent_context(profile, channel="chrome", headless=headless, no_viewport=True)
         page = context.pages[0] if context.pages else context.new_page()
         response = page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-        clicked = settle(page)
+        clicked = wait_and_click(page)
         html = page.content()
         context.close()
         return response.status if response else None, html, clicked
 
 
 # Chrome needs root to install, so skip it when the machine already has it.
-run("patchright", fetch, setup=[] if shutil.which("google-chrome") else [["patchright", "install", "chrome"]])
+CHROME_SETUP = [] if shutil.which("google-chrome") else [["patchright", "install", "chrome"]]
+
+run_adapter("patchright", fetch, setup=CHROME_SETUP)

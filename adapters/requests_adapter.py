@@ -7,7 +7,7 @@ If this passes a target, that target has no real protection."""
 
 import requests
 
-from _common import run
+from _common import run_adapter
 
 
 def fetch(url, headless):
@@ -15,4 +15,4 @@ def fetch(url, headless):
     return r.status_code, r.text
 
 
-run("requests", fetch)
+run_adapter("requests", fetch)

@@ -10,7 +10,7 @@ It does not report the HTTP status."""
 
 from seleniumbase import sb_cdp
 
-from _common import CLICK, SETTLE_MS, run
+from _common import CLICK, SETTLE_MS, run_adapter
 
 
 def fetch(url, headless):
@@ -25,4 +25,4 @@ def fetch(url, headless):
         sb.quit()
 
 
-run("seleniumbase", fetch)
+run_adapter("seleniumbase", fetch)

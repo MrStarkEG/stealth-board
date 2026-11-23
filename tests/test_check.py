@@ -5,7 +5,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from stealth_board.check import problems
+from stealth_board.check import find_problems
 
 ROOT = Path(__file__).parent.parent
 GOOD = {
@@ -18,13 +18,13 @@ GOOD = {
 def broken(change):
     config = copy.deepcopy(GOOD)
     change(config)
-    return " ".join(problems(config, ROOT / "adapters"))
+    return " ".join(find_problems(config, ROOT / "adapters"))
 
 
 class CheckTest(unittest.TestCase):
     def test_the_real_config_is_fine(self):
         config = tomllib.loads((ROOT / "board.toml").read_text())
-        self.assertEqual(problems(config, ROOT / "adapters"), [])
+        self.assertEqual(find_problems(config, ROOT / "adapters"), [])
 
     def test_every_adapter_file_is_in_the_config(self):
         config = tomllib.loads((ROOT / "board.toml").read_text())
@@ -32,7 +32,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(files, {t["name"] for t in config["tool"]})
 
     def test_good_config(self):
-        self.assertEqual(problems(GOOD, ROOT / "adapters"), [])
+        self.assertEqual(find_problems(GOOD, ROOT / "adapters"), [])
 
     def test_problems_are_found(self):
         cases = [
@@ -48,6 +48,8 @@ class CheckTest(unittest.TestCase):
             (lambda c: c["target"][0].update(expect="(unclosed"), "not a valid regular expression"),
             (lambda c: c["target"].append(c["target"][0]), "listed more than once"),
             (lambda c: c.update(target=[]), "There is no [[target]]"),
+            (lambda c: c["target"][0].update(expct="typo"), "unknown field 'expct'"),
+            (lambda c: c["tool"][0].update(mode=["http"]), "unknown field 'mode'"),
         ]
         for change, message in cases:
             with self.subTest(message=message):

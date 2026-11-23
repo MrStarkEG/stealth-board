@@ -4,118 +4,183 @@
 """
 
 import argparse
+import dataclasses
 import datetime
 import json
-import tomllib
 from collections import defaultdict
 from pathlib import Path
 
+from stealth_board.config import load_config
 
-def load(results_dir):
-    return [json.loads(p.read_text()) for p in sorted(Path(results_dir).glob("*/*.json"))]
+WEEK_DAYS = 7
+MONTH_DAYS = 30
+
+CONTROL_OPENS_IT = "A plain tool opens this target, so it shows little."
+NOTHING_OPENS_IT = "No tool opened this target in 7 days. The target or its check may need a look."
 
 
-def rate(tries):
-    """(passes, total) for a list of tries."""
-    return sum(t["verdict"] == "pass" for t in tries), len(tries)
+class History:
+    """The tries of one IP type, looked up by tool, mode, target and day."""
+
+    def __init__(self, records):
+        self.tries = defaultdict(list)  # (tool, mode, target, day) -> tries
+        self.latest_record = {}  # tool -> its newest record
+        self.tool_modes = set()
+        for record in sorted(records, key=lambda record: record["date"]):
+            self.latest_record[record["tool"]] = record
+            for mode, tries_by_target in record["modes"].items():
+                self.tool_modes.add((record["tool"], mode))
+                for target, tries in tries_by_target.items():
+                    self.tries[record["tool"], mode, target, record["date"]] += tries
+
+    def tries_on(self, tool, mode, target, days):
+        return [one_try for day in days for one_try in self.tries[tool, mode, target, day]]
 
 
-def kinds(tries):
-    """How the tries ended: passes that needed a click, challenges, blocks and errors."""
-    count = lambda verdict: sum(t["verdict"] == verdict for t in tries)
+def build_dashboard_data(records, config):
+    targets = [dataclasses.asdict(target) for target in config.targets]
+    tools = [dataclasses.asdict(tool) for tool in config.tools]
+    if not records:
+        return {"generated": None, "targets": targets, "tools": tools, "boards": {}}
+
+    newest_day = max(record["date"] for record in records)
+    month = days_ending(newest_day, MONTH_DAYS)
+    week = month[-WEEK_DAYS:]
+    boards = {}
+    for ip_type in sorted({record["ip_type"] for record in records}):
+        history = History(r for r in records if r["ip_type"] == ip_type and r["date"] in month)
+        boards[ip_type] = {
+            "rows": build_rows(history, config, week, month),
+            "flags": find_weak_targets(history, config, week),
+        }
+    return {"generated": newest_day, "targets": targets, "tools": tools, "boards": boards}
+
+
+def days_ending(last_day, count):
+    """The ISO dates of the count days that end with last_day, oldest first."""
+    last = datetime.date.fromisoformat(last_day)
+    return [(last - datetime.timedelta(days=back)).isoformat() for back in range(count - 1, -1, -1)]
+
+
+def find_weak_targets(history, config, week):
+    """Protected targets that prove little: a control opens them, or nothing does."""
+    controls = {tool.name for tool in config.tools if tool.control}
+    flags = {}
+    for target in config.targets:
+        if not target.is_scored:
+            continue
+        counts = {
+            (tool, mode): count_passes(history.tries_on(tool, mode, target.id, week))
+            for tool, mode in history.tool_modes
+        }
+        control_opens_it = any(
+            total > 0 and passed * 2 >= total for (tool, _), (passed, total) in counts.items() if tool in controls
+        )
+        was_tested = any(total for _, total in counts.values())
+        was_opened = any(passed for passed, _ in counts.values())
+        if control_opens_it:
+            flags[target.id] = CONTROL_OPENS_IT
+        elif was_tested and not was_opened:
+            flags[target.id] = NOTHING_OPENS_IT
+    return flags
+
+
+def build_rows(history, config, week, month):
+    rows = []
+    for tool in config.tools:
+        if tool.name not in history.latest_record:
+            continue
+        latest = history.latest_record[tool.name]
+        if latest["setup"] == "broken":
+            rows.append(build_row(history, tool, tool.modes[0], latest, config, week, month))
+        else:
+            tested_modes = [mode for mode in tool.modes if (tool.name, mode) in history.tool_modes]
+            rows += [build_row(history, tool, mode, latest, config, week, month) for mode in tested_modes]
+    rows.sort(key=row_order)
+    return rows
+
+
+def build_row(history, tool, mode, latest, config, week, month):
+    cells = {target.id: build_cell(history, tool.name, mode, target.id, week, month) for target in config.targets}
+    scored = [cells[target.id] for target in config.targets if target.is_scored]
+    scored_ids = [target.id for target in config.targets if target.is_scored]
     return {
-        "clicks": sum(t["verdict"] == "pass" and t.get("clicked") is True for t in tries),
-        "challenge": count("challenge"), "blocked": count("blocked"), "error": count("error"),
+        "tool": tool.name,
+        "mode": mode,
+        "control": tool.control,
+        "version": latest["version"],
+        "last_run": latest["date"],
+        "broken": latest["setup_error"] if latest["setup"] == "broken" else None,
+        "passed_7d": sum(cell["passed_7d"] for cell in scored),
+        "tries_7d": sum(cell["tries_7d"] for cell in scored),
+        "passed_30d": sum(cell["passed_30d"] for cell in scored),
+        "tries_30d": sum(cell["tries_30d"] for cell in scored),
+        "daily": [daily_score(history, tool.name, mode, scored_ids, day) for day in month],
+        "cells": cells,
     }
 
 
-def build(records, config, today=None):
-    """Return the dashboard data. today defaults to the newest date in the results."""
-    if not records:
-        return {"generated": None, "targets": config["target"], "tools": config["tool"], "boards": {}}
-    today = today or max(r["date"] for r in records)
-    day = datetime.date.fromisoformat(today)
-    since7 = (day - datetime.timedelta(days=6)).isoformat()
-    since30 = (day - datetime.timedelta(days=29)).isoformat()
-    records = [r for r in records if since30 <= r["date"] <= today]
-    controls = {t["name"] for t in config["tool"] if t.get("control")}
-    open_targets = {t["id"] for t in config["target"] if t["kind"] == "open"}
-    target_ids = [t["id"] for t in config["target"]]
+def build_cell(history, tool, mode, target, week, month):
+    week_tries = history.tries_on(tool, mode, target, week)
+    month_tries = history.tries_on(tool, mode, target, month)
+    passed_7d, tries_7d = count_passes(week_tries)
+    passed_30d, tries_30d = count_passes(month_tries)
+    failures = [one_try["reason"] for one_try in month_tries if one_try["verdict"] != "pass"]
+    return {
+        "passed_7d": passed_7d,
+        "tries_7d": tries_7d,
+        "passed_30d": passed_30d,
+        "tries_30d": tries_30d,
+        "last_failure": failures[-1] if failures else "",
+        **count_outcomes(week_tries),
+    }
 
-    boards = {}
-    for ip_type in sorted({r["ip_type"] for r in records}):
-        # tries[(tool, mode)][target][date] = list of tries
-        tries = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-        latest = {}  # tool -> newest record
-        for r in (r for r in records if r["ip_type"] == ip_type):
-            if r["tool"] not in latest or r["date"] >= latest[r["tool"]]["date"]:
-                latest[r["tool"]] = r
-            for mode, by_target in r["modes"].items():
-                for target, ts in by_target.items():
-                    tries[(r["tool"], mode)][target][r["date"]] += ts
 
-        def window(tool_mode, target, since):
-            by_date = tries[tool_mode][target]
-            return [t for d, ts in by_date.items() if d >= since for t in ts]
+def daily_score(history, tool, mode, target_ids, day):
+    """The share of tries that passed on one day, or None when nothing ran."""
+    tries = [one_try for target in target_ids for one_try in history.tries_on(tool, mode, target, [day])]
+    passed, total = count_passes(tries)
+    return round(passed / total, 3) if total else None
 
-        # A protected target that a control opens, or that nothing opens, proves little.
-        flags = {}
-        for target in target_ids:
-            if target in open_targets:
-                continue
-            passes = {tm: rate(window(tm, target, since7)) for tm in tries}
-            control_pass = any(p * 2 >= n > 0 for (tool, _), (p, n) in passes.items() if tool in controls)
-            tested = any(n for _, n in passes.values())
-            if control_pass:
-                flags[target] = "A plain tool opens this target, so it shows little."
-            elif tested and not any(p for p, _ in passes.values()):
-                flags[target] = "No tool opened this target in 7 days. The target or its check may need a look."
 
-        scored = [t for t in target_ids if t not in open_targets]
-        rows = []
-        for tool in config["tool"]:
-            last = latest.get(tool["name"])
-            modes = tool["modes"] if last else []
-            if last and last["setup"] == "broken":
-                modes = modes[:1]
-            for mode in modes:
-                tm = (tool["name"], mode)
-                cells = {}
-                for target in target_ids:
-                    p7, n7 = rate(window(tm, target, since7))
-                    p30, n30 = rate(window(tm, target, since30))
-                    by_date = tries[tm][target]
-                    newest = by_date[max(by_date)] if by_date else []
-                    reasons = [t["reason"] for t in newest if t["verdict"] != "pass"]
-                    cells[target] = {"p7": p7, "n7": n7, "p30": p30, "n30": n30, "reason": reasons[-1] if reasons else ""}
-                    cells[target] |= kinds(window(tm, target, since7))
-                daily = []
-                for back in range(29, -1, -1):
-                    d = (day - datetime.timedelta(days=back)).isoformat()
-                    p, n = rate([t for target in scored for t in tries[tm][target].get(d, [])])
-                    daily.append(round(p / n, 3) if n else None)
-                s7 = [sum(x) for x in zip(*[(cells[t]["p7"], cells[t]["n7"]) for t in scored])] if scored else [0, 0]
-                s30 = [sum(x) for x in zip(*[(cells[t]["p30"], cells[t]["n30"]) for t in scored])] if scored else [0, 0]
-                rows.append({
-                    "tool": tool["name"], "mode": mode, "control": bool(tool.get("control")),
-                    "version": last["version"], "last_run": last["date"],
-                    "broken": last["setup_error"] if last["setup"] == "broken" else None,
-                    "p7": s7[0], "n7": s7[1], "p30": s30[0], "n30": s30[1],
-                    "cells": cells, "daily": daily,
-                })
-        rows.sort(key=lambda r: (r["broken"] is not None, -(r["p7"] / r["n7"] if r["n7"] else 0), r["tool"]))
-        boards[ip_type] = {"rows": rows, "flags": flags}
-    return {"generated": today, "targets": config["target"], "tools": config["tool"], "boards": boards}
+def count_passes(tries):
+    return sum(one_try["verdict"] == "pass" for one_try in tries), len(tries)
+
+
+def count_outcomes(tries):
+    """How the tries ended, plus how many passes needed a click."""
+
+    def count(verdict):
+        return sum(one_try["verdict"] == verdict for one_try in tries)
+
+    return {
+        "after_click": sum(one_try["verdict"] == "pass" and one_try["clicked"] is True for one_try in tries),
+        "challenge": count("challenge"),
+        "blocked": count("blocked"),
+        "error": count("error"),
+    }
+
+
+def row_order(row):
+    """Best score first, broken tools last."""
+    score = row["passed_7d"] / row["tries_7d"] if row["tries_7d"] else 0
+    return (row["broken"] is not None, -score, row["tool"], row["mode"])
+
+
+def load_records(results_dir):
+    return [json.loads(path.read_text()) for path in sorted(Path(results_dir).glob("*/*.json"))]
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--config", default="board.toml")
-    ap.add_argument("--results", default="results")
-    ap.add_argument("--out", default="site/data.json")
-    args = ap.parse_args()
-    config = tomllib.loads(Path(args.config).read_text())
-    data = build(load(args.results), config)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default="board.toml")
+    parser.add_argument("--adapters", default="adapters")
+    parser.add_argument("--results", default="results")
+    parser.add_argument("--out", default="site/data.json")
+    args = parser.parse_args()
+
+    config = load_config(args.config, args.adapters)
+    data = build_dashboard_data(load_records(args.results), config)
     Path(args.out).write_text(json.dumps(data, separators=(",", ":")))
     print(f"wrote {args.out} for {data['generated']}")
 

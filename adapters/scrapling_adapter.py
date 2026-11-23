@@ -8,7 +8,7 @@ That is its own solver for the Cloudflare box. It does not say if it clicked."""
 
 from scrapling.fetchers import StealthyFetcher
 
-from _common import CLICK, SETTLE_MS, run
+from _common import CLICK, SETTLE_MS, run_adapter
 
 
 def fetch(url, headless):
@@ -18,4 +18,6 @@ def fetch(url, headless):
 
 # "scrapling install" also runs a step that needs root, so download the browsers directly.
 # StealthyFetcher drives Chromium through Patchright, which wants its own download.
-run("scrapling", fetch, setup=[["playwright", "install", "chromium"], ["patchright", "install", "chromium"]])
+BROWSER_SETUP = [["playwright", "install", "chromium"], ["patchright", "install", "chromium"]]
+
+run_adapter("scrapling", fetch, setup=BROWSER_SETUP)

@@ -1,189 +1,176 @@
 """Run tools against targets and save the results as JSON.
 
-    python -m stealth_board.run --runner local --ip-type residential
-    python -m stealth_board.run --tool patchright --target cloudflare-demo --tries 1
+    python -m stealth_board.run --runner vps --ip-type datacenter
+    python -m stealth_board.run --tool patchright --target etsy --tries 1
 """
 
 import argparse
+import dataclasses
 import datetime
 import json
 import os
 import re
 import shutil
-import signal
-import subprocess
 import tempfile
 import time
-import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 
-from stealth_board.check import problems
-from stealth_board.verdict import judge
+from stealth_board.config import ConfigError, load_config
+from stealth_board.process import run_command
+from stealth_board.verdict import judge_page
 
-SETUP_TIMEOUT = 900  # browser downloads can be slow
-
-
-def processes():
-    """{pid: (parent pid, session id)} for every live process. Linux only, empty elsewhere."""
-    table = {}
-    for stat in Path("/proc").glob("[0-9]*/stat"):
-        try:
-            fields = stat.read_text().rsplit(")", 1)[1].split()
-        except OSError:
-            continue  # the process ended while we looked
-        if fields[0] != "Z":  # Z: already dead, only waiting to be collected
-            table[int(stat.parent.name)] = (int(fields[1]), int(fields[3]))
-    return table
+SETUP_TIMEOUT_SECONDS = 900  # browser downloads can be slow
+ERROR_MAX_LENGTH = 300
 
 
-def started_by(root):
-    """Every live process that root started, directly or not, or that shares its session.
+@dataclass(frozen=True)
+class Page:
+    """What one fetch brought back. error is set when the tool failed."""
 
-    One rule is not enough. Playwright starts browsers in a session of their own,
-    so the session misses them and only the parent chain finds them. A child whose
-    parent already exited has lost that chain, and only the session finds it."""
-    table = processes()
-    found = {pid for pid, (_, session) in table.items() if session == root or pid == root}
-    grew = True
-    while grew:
-        more = {pid for pid, (parent, _) in table.items() if parent in found or parent == root} - found
-        found |= more
-        grew = bool(more)
-    return found
+    status: int | None
+    html: str
+    clicked: bool | None
+    error: str | None
 
 
-def kill_all(root):
-    """Kill everything root started and wait until it is gone. Waiting matters:
-    a dying browser must not write into its profile folder while that folder
-    is being deleted."""
-    pids = started_by(root)
-    for _ in range(50):
-        for pid in pids:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        alive = processes()
-        pids = {pid for pid in pids if pid in alive} | started_by(root)
-        if not pids:
-            break
-        time.sleep(0.1)
-    try:
-        os.killpg(root, signal.SIGKILL)  # for systems without /proc
-    except ProcessLookupError:
-        pass
+def run_tool(tool, config, adapters_dir, debug_dir=None):
+    """Test one tool against every target and return its result record."""
+    adapter = adapter_path(adapters_dir, tool.name)
+    record = {"tool": tool.name, "version": None, "setup": "ok", "setup_error": None, "modes": {}}
 
-
-def call(cmd, timeout, cwd=None, env=None):
-    """Run cmd in its own session. Return (returncode, stdout, stderr).
-    returncode is None on timeout. Everything the command started is always
-    killed at the end, so no browser is left running."""
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True, cwd=cwd, env=env) as p:
-        try:
-            out, err = p.communicate(timeout=timeout)
-            return p.returncode, out, err
-        except subprocess.TimeoutExpired:
-            return None, "", f"timeout after {timeout}s"
-        finally:
-            kill_all(p.pid)
-
-
-def scrub(text):
-    """Short, one line, and no home path. Results are public."""
-    text = re.sub(r"/(home|Users)/[^/\s]+", "~", text.replace(str(Path.home()), "~")).strip()
-    # Some tools print a box of advice after the real error. Skip the box.
-    lines = [line for line in text.splitlines() if not line.startswith(("╔", "║", "╚"))]
-    last = lines[-1] if lines else ""
-    return re.sub(r"\s+", " ", last)[:300]
-
-
-def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
-    """One try. Return (status, html, clicked, error)."""
-    # A killed browser can still be writing while the folder is removed. That must not stop the run.
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        # TMPDIR points into the temporary folder, so browser profiles land there and
-        # are deleted with it, also when the browser was killed.
-        env = os.environ | {"STEALTH_BOARD_CLICK": "1" if click else "0", "TMPDIR": tmp}
-        outfile = Path(tmp) / "out.json"
-        # Run inside the temporary folder, so files a tool drops land there and not in the repo.
-        code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp, env=env)
-        if not outfile.exists():
-            return None, "", False, scrub(err) if err.strip() else f"adapter exit code {code}"
-        result = json.loads(outfile.read_text())
-    shutil.rmtree(tmp, ignore_errors=True)  # a second sweep, in case a dying browser wrote one more file
-    if debug_file:
-        debug_file.parent.mkdir(parents=True, exist_ok=True)
-        debug_file.write_text(result["html"])
-    error = result["error"]
-    return result["status"], result["html"], result["clicked"], scrub(error) if error else None
-
-
-def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
-    """Return the result record for one tool."""
-    # The "_adapter" suffix stops the script from hiding the package it imports.
-    adapter = (Path(adapters_dir) / f"{tool['name']}_adapter.py").resolve()
-    record = {"tool": tool["name"], "version": None, "setup": "ok", "setup_error": None, "modes": {}}
-    code, out, err = call(["uv", "run", "--quiet", "--refresh", str(adapter), "setup"], SETUP_TIMEOUT)
-    if code != 0:
+    setup = run_command(["uv", "run", "--quiet", "--refresh", str(adapter), "setup"], SETUP_TIMEOUT_SECONDS)
+    if setup.exit_code != 0:
         record["setup"] = "broken"
-        record["setup_error"] = scrub(err)
+        record["setup_error"] = command_error(setup, SETUP_TIMEOUT_SECONDS)
+        print(f"{tool.name:20} BROKEN   {record['setup_error']}", flush=True)
         return record
-    record["version"] = out.strip().splitlines()[-1]
-    for mode in tool["modes"]:
-        by_target = record["modes"][mode] = {}
-        for target in targets:
-            tries = by_target[target["id"]] = []
-            for n in range(config["tries"]):
-                debug_file = Path(debug_dir) / f"{tool['name']}-{mode}-{target['id']}.html" if debug_dir else None
-                start = time.monotonic()
-                status, html, clicked, error = fetch_once(adapter, target["url"], mode, config["timeout"], debug_file, config["click"])
-                ms = round((time.monotonic() - start) * 1000)
-                if error:
-                    verdict, reason = "error", error
-                else:
-                    verdict, reason = judge(status, html, target["expect"], target.get("reject"))
-                tries.append({"verdict": verdict, "reason": reason, "clicked": clicked, "status": status, "ms": ms})
-                note = " (after click)" if clicked and verdict == "pass" else " (clicked)" if clicked else ""
-                print(f"{tool['name']:20} {mode:9} {target['id']:28} {verdict:9} {reason}{note}", flush=True)
+    record["version"] = setup.stdout.strip().splitlines()[-1]
+
+    for mode in tool.modes:
+        record["modes"][mode] = {
+            target.id: [try_target(adapter, tool, mode, target, config, debug_dir) for _ in range(config.tries)]
+            for target in config.targets
+        }
     return record
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", default="board.toml")
-    ap.add_argument("--adapters", default="adapters")
-    ap.add_argument("--out", default="results")
-    ap.add_argument("--runner", default="local", help="a short public name for where this runs")
-    ap.add_argument("--ip-type", default="residential", choices=["residential", "datacenter"])
-    ap.add_argument("--tool", action="append", help="only this tool (repeatable)")
-    ap.add_argument("--target", action="append", help="only this target id (repeatable)")
-    ap.add_argument("--mode", action="append", help="only this mode (repeatable)")
-    ap.add_argument("--tries", type=int, help="override tries from the config")
-    ap.add_argument("--no-click", action="store_true", help="never click a challenge check box")
-    ap.add_argument("--debug-dir", help="save the last fetched HTML of each case here")
-    args = ap.parse_args()
+def try_target(adapter, tool, mode, target, config, debug_dir):
+    """Fetch one target once and return the saved form of that try."""
+    started = time.monotonic()
+    page = fetch_page(adapter, target.url, mode, config.timeout, config.click)
+    elapsed_ms = round((time.monotonic() - started) * 1000)
 
-    config = tomllib.loads(Path(args.config).read_text())
-    found = problems(config, args.adapters)
-    if found:
-        raise SystemExit("The config has problems:\n  " + "\n  ".join(found))
-    if args.tries:
-        config["tries"] = args.tries
+    if debug_dir is not None:
+        save_debug_page(debug_dir, tool, mode, target, page)
+    if page.error is not None:
+        verdict, reason = "error", page.error
+    else:
+        verdict, reason = judge_page(page.status, page.html, target.expect, target.reject)
+
+    click_note = " (clicked)" if page.clicked else ""
+    print(f"{tool.name:20} {mode:9} {target.id:28} {verdict:9} {reason}{click_note}", flush=True)
+    return {"verdict": verdict, "reason": reason, "clicked": page.clicked, "status": page.status, "ms": elapsed_ms}
+
+
+def fetch_page(adapter, url, mode, timeout, click):
+    """Run the adapter once, in a throwaway folder that also holds the browser profile."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
+        result_file = Path(folder) / "result.json"
+        env = os.environ | {"STEALTH_BOARD_CLICK": "1" if click else "0", "TMPDIR": folder}
+        command = ["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(result_file)]
+        finished = run_command(command, timeout, cwd=folder, env=env)
+        if not result_file.exists():
+            return Page(status=None, html="", clicked=False, error=command_error(finished, timeout))
+        result = json.loads(result_file.read_text())
+    shutil.rmtree(folder, ignore_errors=True)  # a dying browser may have written one more file
+
+    error = result["error"]
+    return Page(
+        status=result["status"],
+        html=result["html"],
+        clicked=result["clicked"],
+        error=shorten_error(error) if error is not None else None,
+    )
+
+
+def command_error(finished, timeout):
+    if finished.timed_out:
+        return f"timeout after {timeout}s"
+    if finished.stderr.strip():
+        return shorten_error(finished.stderr)
+    return f"adapter exit code {finished.exit_code}"
+
+
+def shorten_error(text):
+    """Keep the last real line, without home paths. Results are public."""
+    text = re.sub(r"/(home|Users)/[^/\s]+", "~", text.replace(str(Path.home()), "~"))
+    # Some tools print a box of advice after the real error.
+    lines = [line for line in text.strip().splitlines() if not line.startswith(("╔", "║", "╚"))]
+    if not lines:
+        return ""
+    return re.sub(r"\s+", " ", lines[-1])[:ERROR_MAX_LENGTH]
+
+
+def adapter_path(adapters_dir, tool_name):
+    return (Path(adapters_dir) / f"{tool_name}_adapter.py").resolve()
+
+
+def save_debug_page(debug_dir, tool, mode, target, page):
+    debug_dir = Path(debug_dir)
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    (debug_dir / f"{tool.name}-{mode}-{target.id}.html").write_text(page.html)
+
+
+def select(config, tool_names, target_ids, modes):
+    """Narrow the config to what the command line asked for. None keeps everything."""
+    tools = [tool for tool in config.tools if tool_names is None or tool.name in tool_names]
+    if modes is not None:
+        tools = [dataclasses.replace(tool, modes=tuple(m for m in tool.modes if m in modes)) for tool in tools]
+    targets = [target for target in config.targets if target_ids is None or target.id in target_ids]
+    return dataclasses.replace(config, tools=tuple(tools), targets=tuple(targets))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", default="board.toml")
+    parser.add_argument("--adapters", default="adapters")
+    parser.add_argument("--out", default="results")
+    parser.add_argument("--runner", default="local", help="a short public name for where this runs")
+    parser.add_argument("--ip-type", default="residential", choices=["residential", "datacenter"])
+    parser.add_argument("--tool", action="append", help="only this tool (repeatable)")
+    parser.add_argument("--target", action="append", help="only this target id (repeatable)")
+    parser.add_argument("--mode", action="append", help="only this mode (repeatable)")
+    parser.add_argument("--tries", type=int, help="override tries from the config")
+    parser.add_argument("--no-click", action="store_true", help="never click a challenge check box")
+    parser.add_argument("--debug-dir", help="save the last fetched HTML of each case here")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    try:
+        config = load_config(args.config, args.adapters)
+    except ConfigError as error:
+        raise SystemExit(str(error))
+
+    config = select(config, args.tool, args.target, args.mode)
+    if args.tries is not None:
+        config = dataclasses.replace(config, tries=args.tries)
     if args.no_click:
-        config["click"] = False
-    tools = [t for t in config["tool"] if not args.tool or t["name"] in args.tool]
-    if args.mode:
-        tools = [t | {"modes": [m for m in t["modes"] if m in args.mode]} for t in tools]
-    targets = [t for t in config["target"] if not args.target or t["id"] in args.target]
+        config = dataclasses.replace(config, click=False)
+
     date = datetime.datetime.now(datetime.UTC).date().isoformat()
-    outdir = Path(args.out) / date
-    outdir.mkdir(parents=True, exist_ok=True)
-    for tool in tools:
-        record = run_tool(tool, targets, config, args.adapters, args.debug_dir)
-        record |= {"date": date, "runner": args.runner, "ip_type": args.ip_type, "click": config["click"]}
-        (outdir / f"{args.runner}__{tool['name']}.json").write_text(json.dumps(record, indent=1) + "\n")
-        if record["setup"] == "broken":
-            print(f"{tool['name']:20} BROKEN   {record['setup_error']}", flush=True)
+    out_dir = Path(args.out) / date
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def run_and_save(tool):
+        record = run_tool(tool, config, args.adapters, args.debug_dir)
+        record |= {"date": date, "runner": args.runner, "ip_type": args.ip_type, "click": config.click}
+        (out_dir / f"{args.runner}__{tool.name}.json").write_text(json.dumps(record, indent=1) + "\n")
+
+    for tool in config.tools:
+        run_and_save(tool)
 
 
 if __name__ == "__main__":

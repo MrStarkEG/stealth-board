@@ -10,7 +10,7 @@ of the English widget, so this adapter does not click."""
 
 import nodriver
 
-from _common import SETTLE_MS, run
+from _common import SETTLE_MS, run_adapter
 
 
 def fetch(url, headless):
@@ -26,4 +26,4 @@ def fetch(url, headless):
     return nodriver.loop().run_until_complete(go())
 
 
-run("nodriver", fetch)
+run_adapter("nodriver", fetch)

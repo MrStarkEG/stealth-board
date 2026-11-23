@@ -11,7 +11,7 @@ import asyncio
 
 import zendriver
 
-from _common import CLICK, SETTLE_MS, run
+from _common import CLICK, SETTLE_MS, run_adapter
 
 
 def fetch(url, headless):
@@ -35,4 +35,4 @@ def fetch(url, headless):
     return asyncio.run(go())
 
 
-run("zendriver", fetch)
+run_adapter("zendriver", fetch)

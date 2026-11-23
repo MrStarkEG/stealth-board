@@ -8,7 +8,7 @@ Settings from its README: impersonate="chrome" follows the newest Chrome profile
 
 import curl_cffi
 
-from _common import run
+from _common import run_adapter
 
 
 def fetch(url, headless):
@@ -16,4 +16,4 @@ def fetch(url, headless):
     return r.status_code, r.text
 
 
-run("curl_cffi", fetch)
+run_adapter("curl_cffi", fetch)

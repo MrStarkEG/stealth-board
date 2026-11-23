@@ -1,10 +1,10 @@
-"""Decide if a fetched page is the real page or a block page."""
+"""Decide if a fetched page is the real page, a challenge, or a block."""
 
 import re
 
-# A challenge page asks the browser to prove something first (a check box, a
-# puzzle, a wait). The site has not said no yet, but we did not get through.
-CHALLENGES = [
+# A challenge page asks the browser to prove something first. The site has not
+# said no yet, but we did not get through.
+CHALLENGE_MARKERS = [
     ("cloudflare challenge", r"Just a moment\.\.\.|cf-chl-|cf-turnstile|challenges\.cloudflare\.com"),
     ("datadome captcha", r"captcha-delivery\.com"),
     ("perimeterx captcha", r"px-captcha|Press &amp; Hold|Press & Hold"),
@@ -13,34 +13,37 @@ CHALLENGES = [
 ]
 
 # A block page is a plain no.
-BLOCKS = [
+BLOCK_MARKERS = [
     ("cloudflare block", r"Attention Required! \| Cloudflare|Sorry, you have been blocked"),
     ("akamai block", r"errors\.edgesuite\.net"),
     ("imperva block", r"_Incapsula_Resource"),
 ]
 
 
-def judge(status, html, expect, reject=None):
-    """Return (verdict, reason).
+def judge_page(status, html, expect, reject=None):
+    """Return (verdict, reason). The verdict is "pass", "challenge" or "blocked".
 
-    pass       the expected text is there. A status of 200 is not enough,
-               because block pages often return 200.
-    challenge  the page is still showing a check or a captcha
-    blocked    the site refused, or the page is something else
-
-    The marker lists only choose between "challenge" and "blocked" and name
-    the reason. Pass is decided by the expected text alone.
+    Only the expect pattern decides a pass. A status of 200 is not enough,
+    because block pages often return 200. The markers only choose between
+    challenge and blocked, and name the reason.
     """
-    if reject and re.search(reject, html):
+    if reject is not None and re.search(reject, html):
         return "blocked", "page says we are a bot"
     if re.search(expect, html):
         return "pass", ""
-    for name, pattern in BLOCKS:
-        if re.search(pattern, html):
-            return "blocked", name
-    for name, pattern in CHALLENGES:
-        if re.search(pattern, html):
-            return "challenge", name
+    block = _first_match(BLOCK_MARKERS, html)
+    if block is not None:
+        return "blocked", block
+    challenge = _first_match(CHALLENGE_MARKERS, html)
+    if challenge is not None:
+        return "challenge", challenge
     if status is not None and status >= 400:
         return "blocked", f"http {status}"
     return "blocked", "expected text missing"
+
+
+def _first_match(markers, html):
+    for name, pattern in markers:
+        if re.search(pattern, html):
+            return name
+    return None

@@ -4,7 +4,7 @@ import http.server
 import threading
 import unittest
 
-from stealth_board.probe import detect, get, report
+from stealth_board.probe import describe, detect_vendors, fetch_plain
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -38,7 +38,7 @@ class ProbeTest(unittest.TestCase):
         ]
         for headers, body, expected in cases:
             with self.subTest(headers=headers, body=body):
-                self.assertEqual(detect(headers, body), expected)
+                self.assertEqual(detect_vendors(headers, body), expected)
 
     def test_report_from_a_local_server(self):
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -47,12 +47,12 @@ class ProbeTest(unittest.TestCase):
         self.addCleanup(server.shutdown)
         base = f"http://127.0.0.1:{server.server_port}"
 
-        protected = "\n".join(report(base + "/protected", *get(base + "/protected")))
+        protected = "\n".join(describe(base + "/protected", *fetch_plain(base + "/protected")))
         self.assertIn("status   403", protected)
         self.assertIn("DataDome (seen in headers and page)", protected)
         self.assertIn("it can be a target", protected)
 
-        opened = "\n".join(report(base + "/", *get(base + "/")))
+        opened = "\n".join(describe(base + "/", *fetch_plain(base + "/")))
         self.assertIn("title    Open Shop", opened)
         self.assertIn("none seen", opened)
         self.assertIn("weak target", opened)
