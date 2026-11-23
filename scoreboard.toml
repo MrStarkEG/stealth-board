@@ -1,0 +1,29 @@
+# Everything the scoreboard tests is listed in this one file.
+
+tries = 3      # fetches per tool, mode and target in one run
+timeout = 90   # seconds before one fetch is killed
+
+# Tools. Each one has a script adapters/NAME_adapter.py.
+# modes: "http" for HTTP clients. Browsers use "headless" and "headed".
+# control = true marks the plain tools that should fail on protected targets.
+
+[[tool]]
+name = "requests"
+modes = ["http"]
+control = true
+
+[[tool]]
+name = "playwright"
+modes = ["headless", "headed"]
+control = true
+
+# Targets. A try passes when the page HTML matches "expect".
+# "reject" is for test pages that load fine but say "you are a bot".
+
+[[target]]
+id = "example"
+name = "example.com (no protection)"
+kind = "open"
+vendor = "none"
+url = "https://example.com/"
+expect = "Example Domain"

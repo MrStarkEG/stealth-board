@@ -63,7 +63,8 @@ def fetch_once(adapter, url, mode, timeout, debug_file):
 
 def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
     """Return the result record for one tool."""
-    adapter = Path(adapters_dir) / f"{tool['name']}.py"
+    # The "_adapter" suffix stops the script from hiding the package it imports.
+    adapter = Path(adapters_dir) / f"{tool['name']}_adapter.py"
     record = {"tool": tool["name"], "version": None, "setup": "ok", "setup_error": None, "modes": {}}
     code, out, err = call(["uv", "run", "--quiet", "--refresh", str(adapter), "setup"], SETUP_TIMEOUT)
     if code != 0:
@@ -98,6 +99,7 @@ def main():
     ap.add_argument("--ip-type", default="residential", choices=["residential", "datacenter"])
     ap.add_argument("--tool", action="append", help="only this tool (repeatable)")
     ap.add_argument("--target", action="append", help="only this target id (repeatable)")
+    ap.add_argument("--mode", action="append", help="only this mode (repeatable)")
     ap.add_argument("--tries", type=int, help="override tries from the config")
     ap.add_argument("--debug-dir", help="save the last fetched HTML of each case here")
     args = ap.parse_args()
@@ -106,6 +108,8 @@ def main():
     if args.tries:
         config["tries"] = args.tries
     tools = [t for t in config["tool"] if not args.tool or t["name"] in args.tool]
+    if args.mode:
+        tools = [t | {"modes": [m for m in t["modes"] if m in args.mode]} for t in tools]
     targets = [t for t in config["target"] if not args.target or t["id"] in args.target]
     date = datetime.datetime.now(datetime.UTC).date().isoformat()
     outdir = Path(args.out) / date

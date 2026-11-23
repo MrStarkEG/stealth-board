@@ -3,9 +3,9 @@
 An adapter is one standalone script. uv reads the dependency list at the top
 of the script and runs it in its own environment, so tools never clash.
 
-    uv run adapters/NAME.py setup
+    uv run adapters/NAME_adapter.py setup
         Install what the tool needs (browsers). Print the tool version.
-    uv run adapters/NAME.py fetch URL headless|headed|http OUTFILE
+    uv run adapters/NAME_adapter.py fetch URL headless|headed|http OUTFILE
         Open URL once and write {"status", "html", "error"} to OUTFILE as JSON.
 """
 
@@ -13,6 +13,11 @@ import importlib.metadata
 import json
 import subprocess
 import sys
+
+# Browser adapters wait this long after the page loads, so a challenge page
+# has time to finish and send the browser on to the real page.
+SETTLE_MS = 8000
+NAV_TIMEOUT_MS = 45000
 
 
 def run(package, fetch, setup=()):
