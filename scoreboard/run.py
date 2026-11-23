@@ -16,6 +16,7 @@ import time
 import tomllib
 from pathlib import Path
 
+from scoreboard.check import problems
 from scoreboard.verdict import judge
 
 SETUP_TIMEOUT = 900  # browser downloads can be slow
@@ -110,6 +111,9 @@ def main():
     args = ap.parse_args()
 
     config = tomllib.loads(Path(args.config).read_text())
+    found = problems(config, args.adapters)
+    if found:
+        raise SystemExit("The config has problems:\n  " + "\n  ".join(found))
     if args.tries:
         config["tries"] = args.tries
     if args.no_click:
