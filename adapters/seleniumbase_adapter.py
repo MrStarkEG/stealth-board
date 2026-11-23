@@ -18,11 +18,20 @@ def fetch(url, headless):
     try:
         sb.sleep(SETTLE_MS / 1000)
         if CLICK:
-            sb.solve_captcha()
+            solve_captcha(sb)
             sb.sleep(SETTLE_MS / 1000 / 2)
         return None, sb.get_page_source(), None if CLICK else False
     finally:
         sb.quit()
+
+
+def solve_captcha(sb):
+    """A captcha the solver cannot handle is not a crash. The page is read
+    afterwards anyway, and it then counts as a challenge."""
+    try:
+        sb.solve_captcha()
+    except Exception:
+        pass
 
 
 run_adapter("seleniumbase", fetch)
