@@ -43,6 +43,12 @@ def detect_vendors(headers, page):
     return seen
 
 
+def describe_vendors(vendors):
+    if not vendors:
+        return "none seen in this response"
+    return ", ".join(f"{vendor} (seen in {where})" for vendor, where in vendors)
+
+
 def fetch_plain(url):
     """Return (status, raw header lines, page) for one plain GET."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
@@ -67,7 +73,7 @@ def describe(url, status, headers, page):
         f"status   {status}",
         f"title    {title.group(1).strip()[:80] if title else '(none)'}",
         f"size     {len(page)} characters",
-        "vendor   " + (", ".join(f"{vendor} (seen in {where})" for vendor, where in vendors) or "none seen in this response"),
+        f"vendor   {describe_vendors(vendors)}",
     ]
     if was_stopped:
         lines.append(f"plain client: stopped ({reason}). This page tells tools apart, so it can be a target.")

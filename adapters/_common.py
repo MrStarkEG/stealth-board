@@ -22,7 +22,8 @@ from pathlib import Path
 
 SETTLE_MS = 8000  # time for a challenge page to finish and move on to the real page
 NAV_TIMEOUT_MS = 45000
-CLICK = os.environ.get("STEALTH_BOARD_CLICK", "1") == "1"
+# The runner sets this to "0" or "1". An adapter started by hand clicks.
+CLICK = os.environ.get("STEALTH_BOARD_CLICK") != "0"
 
 CHECKBOX_OFFSET_X = 22  # the check box is a square at the left edge of the widget
 MIN_WIDGET_WIDTH = 100  # smaller Cloudflare frames are hidden helpers
