@@ -46,6 +46,7 @@
   .bad { color: var(--bad); background: var(--bad-bg); }
   .none { color: var(--none); }
   .flag { color: var(--mid); cursor: help; }
+  td small.why { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; margin-top: 2px; }
   .broken td.msg { text-align: left; color: var(--bad); white-space: normal; }
   svg.spark { width: 90px; height: 22px; vertical-align: middle; }
   svg.spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; }
@@ -74,6 +75,7 @@
   <h2>How to read this</h2>
   <ul>
     <li><b>Score</b> is the pass rate on the protected pages only. Pages with no protection are shown but not counted.</li>
+    <li>The word under a number says how the failed tries ended. <b>challenge</b>: the page kept showing a check or a captcha. <b>blocked</b>: the site refused. <b>error</b>: the library crashed or took too long. <b>with click</b>: it passed after clicking the challenge check box.</li>
     <li><b>Controls</b> are plain tools with no stealth. A stealth library should beat them.</li>
     <li><b>headless</b> means no window. <b>headed</b> means a real window on a virtual screen, which is harder to detect and uses more memory.</li>
     <li>The trend line shows the daily score for the last 30 days. A sudden drop often means a browser update or a new protection rule broke the library.</li>
@@ -147,8 +149,17 @@ function render(data, ipType) {
       el("td", {}, spark(r.daily)));
     for (const t of targets) {
       const c = r.cells[t.id];
-      const tip = c.n30 ? `7 days: ${c.p7} of ${c.n7} tries passed. 30 days: ${c.p30} of ${c.n30}.` + (c.reason ? ` Last failure: ${c.reason}` : "") : "Not tested yet";
-      tr.append(el("td", { className: firsts.has(t.id) ? "first" : "", title: tip }, el("span", { className: "cell " + tone(c.p7, c.n7), textContent: pct(c.p7, c.n7) })));
+      const parts = [`${c.p7} of ${c.n7} tries passed` + (c.clicks ? ` (${c.clicks} after clicking the check box)` : "")];
+      if (c.challenge) parts.push(`${c.challenge} stuck on a challenge`);
+      if (c.blocked) parts.push(`${c.blocked} blocked`);
+      if (c.error) parts.push(`${c.error} errors`);
+      const tip = c.n30 ? `7 days: ${parts.join(", ")}. 30 days: ${c.p30} of ${c.n30} passed.` + (c.reason ? ` Last failure: ${c.reason}` : "") : "Not tested yet";
+      // One word under the number: the most common way it failed, or that it needed a click.
+      const fails = [["challenge", c.challenge], ["blocked", c.blocked], ["error", c.error]].sort((a, b) => b[1] - a[1])[0];
+      const why = fails[1] ? fails[0] : c.clicks ? "with click" : "";
+      const td = el("td", { className: firsts.has(t.id) ? "first" : "", title: tip }, el("span", { className: "cell " + tone(c.p7, c.n7), textContent: pct(c.p7, c.n7) }));
+      if (why) td.append(el("small", { className: "why", textContent: why }));
+      tr.append(td);
     }
     body.append(tr);
   }

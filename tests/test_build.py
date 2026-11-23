@@ -47,6 +47,19 @@ class BuildTest(unittest.TestCase):
         # last 30 days = June 1..30: 28 good days and 2 bad days. May 20 is out.
         self.assertEqual((shop["p30"], shop["n30"]), (56, 60))
         self.assertEqual(shop["reason"], "http 403")
+        self.assertEqual((shop["blocked"], shop["challenge"], shop["error"], shop["clicks"]), (4, 0, 0, 0))
+
+    def test_kinds_of_result(self):
+        tries = [
+            {"verdict": "pass", "reason": "", "clicked": True},
+            {"verdict": "pass", "reason": "", "clicked": None},
+            {"verdict": "challenge", "reason": "cloudflare challenge", "clicked": True},
+            {"verdict": "error", "reason": "timeout after 90s", "clicked": False},
+        ]
+        rec = {"date": "2026-06-30", "tool": "stealth", "version": "1", "setup": "ok", "setup_error": None, "ip_type": "x", "modes": {"headless": {"shop": tries}}}
+        cell = build([rec], CONFIG)["boards"]["x"]["rows"][0]["cells"]["shop"]
+        self.assertEqual((cell["p7"], cell["n7"]), (2, 4))
+        self.assertEqual((cell["clicks"], cell["challenge"], cell["blocked"], cell["error"]), (1, 1, 0, 1))
 
     def test_overall_score_skips_open_targets(self):
         row = self.rows[("stealth", "headless")]

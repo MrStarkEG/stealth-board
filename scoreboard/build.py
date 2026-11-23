@@ -20,6 +20,15 @@ def rate(tries):
     return sum(t["verdict"] == "pass" for t in tries), len(tries)
 
 
+def kinds(tries):
+    """How the tries ended: passes that needed a click, challenges, blocks and errors."""
+    count = lambda verdict: sum(t["verdict"] == verdict for t in tries)
+    return {
+        "clicks": sum(t["verdict"] == "pass" and t.get("clicked") is True for t in tries),
+        "challenge": count("challenge"), "blocked": count("blocked"), "error": count("error"),
+    }
+
+
 def build(records, config, today=None):
     """Return the dashboard data. today defaults to the newest date in the results."""
     if not records:
@@ -79,6 +88,7 @@ def build(records, config, today=None):
                     newest = by_date[max(by_date)] if by_date else []
                     reasons = [t["reason"] for t in newest if t["verdict"] != "pass"]
                     cells[target] = {"p7": p7, "n7": n7, "p30": p30, "n30": n30, "reason": reasons[-1] if reasons else ""}
+                    cells[target] |= kinds(window(tm, target, since7))
                 daily = []
                 for back in range(29, -1, -1):
                     d = (day - datetime.timedelta(days=back)).isoformat()
