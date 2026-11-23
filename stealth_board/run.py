@@ -5,6 +5,7 @@
 """
 
 import argparse
+import contextlib
 import dataclasses
 import datetime
 import json
@@ -18,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from stealth_board.config import ConfigError, load_config
+from stealth_board.display import headed_environment
 from stealth_board.process import run_command
 from stealth_board.verdict import judge_page
 
@@ -53,17 +55,30 @@ def run_tool(tool, config, adapters_dir, debug_dir=None):
     record["version"] = setup.stdout.strip().splitlines()[-1]
 
     for mode in tool.modes:
-        record["modes"][mode] = {
-            target.id: [try_target(adapter, tool, mode, target, config, debug_dir) for _ in range(config.tries)]
-            for target in config.targets
-        }
+        with mode_environment(mode) as environment:
+            record["modes"][mode] = {
+                target.id: [
+                    try_target(adapter, tool, mode, target, config, environment, debug_dir)
+                    for _ in range(config.tries)
+                ]
+                for target in config.targets
+            }
     return record
 
 
-def try_target(adapter, tool, mode, target, config, debug_dir):
+@contextlib.contextmanager
+def mode_environment(mode):
+    if mode == "headed":
+        with headed_environment() as environment:
+            yield environment
+    else:
+        yield dict(os.environ)
+
+
+def try_target(adapter, tool, mode, target, config, environment, debug_dir):
     """Fetch one target once and return the saved form of that try."""
     started = time.monotonic()
-    page = fetch_page(adapter, target.url, mode, config.timeout, config.click)
+    page = fetch_page(adapter, target.url, mode, config.timeout, config.click, environment)
     elapsed_ms = round((time.monotonic() - started) * 1000)
 
     if debug_dir is not None:
@@ -78,11 +93,11 @@ def try_target(adapter, tool, mode, target, config, debug_dir):
     return {"verdict": verdict, "reason": reason, "clicked": page.clicked, "status": page.status, "ms": elapsed_ms}
 
 
-def fetch_page(adapter, url, mode, timeout, click):
+def fetch_page(adapter, url, mode, timeout, click, environment):
     """Run the adapter once, in a throwaway folder that also holds the browser profile."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as folder:
         result_file = Path(folder) / "result.json"
-        env = os.environ | {"STEALTH_BOARD_CLICK": "1" if click else "0", "TMPDIR": folder}
+        env = environment | {"STEALTH_BOARD_CLICK": "1" if click else "0", "TMPDIR": folder}
         command = ["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(result_file)]
         finished = run_command(command, timeout, cwd=folder, env=env)
         if not result_file.exists():
