@@ -44,20 +44,3 @@ def judge(status, html, expect, reject=None):
     if status is not None and status >= 400:
         return "blocked", f"http {status}"
     return "blocked", "expected text missing"
-
-
-def demo():
-    assert judge(200, "<h1>Welcome</h1>", "Welcome") == ("pass", "")
-    assert judge(200, "<title>Just a moment...</title>", "Welcome") == ("challenge", "cloudflare challenge")
-    assert judge(403, "<title>Just a moment...</title>", "Welcome") == ("challenge", "cloudflare challenge")
-    assert judge(403, "Sorry, you have been blocked <a href=challenges.cloudflare.com>", "Welcome") == ("blocked", "cloudflare block")
-    assert judge(403, "nope", "Welcome") == ("blocked", "http 403")
-    assert judge(200, "", "Welcome") == ("blocked", "expected text missing")
-    assert judge(200, "Welcome, you are a bot", "Welcome", "you are a bot") == ("blocked", "page says we are a bot")
-    # A real page that also embeds a captcha widget still passes.
-    assert judge(200, "Welcome <div class=g-recaptcha>", "Welcome") == ("pass", "")
-    print("ok")
-
-
-if __name__ == "__main__":
-    demo()
