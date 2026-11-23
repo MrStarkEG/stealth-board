@@ -12,6 +12,14 @@ Stealth libraries break often. A new Chrome release or a new protection rule can
 
 One **try** is one page load by one library. A try **passes** only when the real page content comes back. A status code of 200 is not enough, because block pages often return 200.
 
+A try that fails is one of three kinds:
+
+- **challenge**: the page kept showing a check or a captcha
+- **blocked**: the site refused
+- **error**: the library crashed or took too long
+
+When a page shows a Cloudflare check box, the library clicks it once and waits again. The results say if a pass needed that click, and if the site refused the click.
+
 Each run makes 3 tries per library, mode and target. The dashboard shows the pass rate over the last 7 and 30 days.
 
 ## What is tested
@@ -68,11 +76,13 @@ The first run of a library downloads its browser, which can take a few minutes. 
 scoreboard.toml      the list of libraries and targets, and the run settings
 adapters/            one small script per library
 scoreboard/run.py    runs the libraries against the targets, writes results/
-scoreboard/verdict.py  decides pass or blocked
+scoreboard/verdict.py  decides pass, challenge or blocked
 scoreboard/build.py  turns results/ into site/data.json
+scoreboard/check.py  checks that scoreboard.toml is valid
+scoreboard/probe.py  looks at a new website before you add it
 site/index.html      the dashboard
 results/             one folder per day, one JSON file per library
-tests/               tests that run against a local web server
+tests/               tests that run against a local web server, with sample block pages
 .github/workflows/   the daily run
 docs/                the guides below
 ```
@@ -81,6 +91,7 @@ docs/                the guides below
 
 - [How it works](docs/how-it-works.md): the full path from a URL to a number on the dashboard
 - [Run it locally](docs/run-locally.md): setup, commands, and fixing common problems
+- [Testing](docs/testing.md): the four test levels, testing a new website, and the click on a challenge box
 - [Add a library](docs/add-a-library.md)
 - [Add a target](docs/add-a-target.md)
 - [Publish it on GitHub](docs/publish-on-github.md): the daily run and the dashboard

@@ -44,21 +44,32 @@ Every fetch is a new process with a new empty browser profile. Nothing is shared
 
 ## 4. The verdict
 
-`scoreboard/verdict.py` gives each try one of three results:
+`scoreboard/verdict.py` gives each try one of four results:
 
 | Result | Meaning |
 |---|---|
 | pass | the `expect` pattern is in the page |
-| blocked | the page came back, but it is not the real page |
+| challenge | the page still shows a check or a captcha |
+| blocked | the site refused, or the page is something else |
 | error | the tool crashed, or the fetch timed out |
 
-For a blocked page it also saves a reason, like "cloudflare challenge" or "http 403". The reason is only a label. Pass or blocked is decided by `expect` alone.
+For a failed try it also saves a reason, like "cloudflare challenge" or "http 403". Pass is decided by `expect` alone. The lists of known pages only choose between challenge and blocked.
+
+### The click
+
+Some challenge pages show a check box ("Verify you are human"). With `click = true` in the config, the adapter clicks that box once, waits, and reads the page again. Each try saves `clicked`, so the results can tell these apart:
+
+- it passed with no click
+- it passed after the click
+- the click landed, and the site showed the check again
+
+Adapters with a Playwright-style page share one helper for this (`settle` in `adapters/_common.py`). Tools with their own solver use that instead, and their adapter says so at the top.
 
 ## 5. The results
 
 The runner writes one file per tool and day: `results/2026-11-21/github__patchright.json`.
 
-The file holds the tool version, the date, the runner name, the IP type (datacenter or residential), and every try. It never holds an IP address, a host name or a page.
+The file holds the tool version, the date, the runner name, the IP type (datacenter or residential), if clicking was on, and every try. It never holds an IP address, a host name or a page.
 
 ## 6. The dashboard
 

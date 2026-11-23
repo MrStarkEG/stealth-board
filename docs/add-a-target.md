@@ -25,7 +25,11 @@ expect = "<title[^>]*>Etsy"
 
 ## How to pick a good target
 
-1. **Confirm the vendor from the response.** Do not guess. Look at the headers, cookies and block page that a plain client gets, and write what you saw in a comment above the target.
+1. **Confirm the vendor from the response.** Do not guess. Run the probe, and write what it saw in a comment above the target:
+
+   ```sh
+   python3 -m scoreboard.probe https://www.example-shop.com/
+   ```
 2. **Check that it tells tools apart.** Fetch it with a control and with a stealth tool, and save the pages:
 
    ```sh
@@ -35,6 +39,8 @@ expect = "<title[^>]*>Etsy"
    A good target blocks the control and lets at least one stealth tool in.
 3. **Pick `expect` from the real page.** Open the saved HTML of a passing tool and choose text that the block page does not have. The page title is often a good choice. Make sure it also works when the site shows another language.
 4. **Keep it small and fair.** Use one public page with no login. Do not add sites that ask not to be tested, and do not add pages with personal data.
+
+The full path, step by step, is in [testing.md](testing.md#test-a-new-website-before-you-add-it).
 
 ## When a target goes bad
 

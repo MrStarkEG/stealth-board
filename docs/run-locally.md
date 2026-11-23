@@ -11,11 +11,14 @@ The runner itself uses only the Python standard library. There is nothing to `pi
 
 ## Commands
 
-Run the tests. They use a local web server and fake adapters, so they need no browser:
+Check the config and run the tests. They use a local web server and fake adapters, so they need no browser:
 
 ```sh
+python3 -m scoreboard.check
 python3 -m unittest discover tests
 ```
+
+[testing.md](testing.md) explains what each test level covers.
 
 Run one small case:
 

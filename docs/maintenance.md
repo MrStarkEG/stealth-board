@@ -15,6 +15,8 @@
 
 **Targets go out of date.** This is the main job, a few minutes a month. Look at the "Targets to read with care" list on the dashboard and follow [add-a-target.md](add-a-target.md#when-a-target-goes-bad).
 
+**A site shows a new kind of block page.** Its tries are then saved as "blocked, expected text missing", which is still correct but less clear. Add the page to the verdict rules as [testing.md](testing.md#when-you-meet-a-new-kind-of-block-page) shows.
+
 **A library changes its API.** The adapter then fails on every target, and the dashboard shows errors with the message. Read the library's README and fix its adapter, which is about 20 lines.
 
 **GitHub Action versions.** `.github/workflows/daily.yml` uses major version tags (`actions/checkout@v7`). Raise them when GitHub announces that an old major version will stop working.
@@ -24,9 +26,9 @@
 ## Check that things still work after a change
 
 ```sh
+python3 -m scoreboard.check
 python3 -m unittest discover tests
 python3 -m scoreboard.run --target example --tries 1
-python3 -m scoreboard.build
 ```
 
-The first command tests the runner and the dashboard numbers with no network. The second starts every library once against an open page.
+The first two need no network. The third starts every library once against an open page. [testing.md](testing.md) explains each level.
