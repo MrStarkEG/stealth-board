@@ -7,9 +7,9 @@ There are four levels. Each one is slower than the one before and closer to the 
 | 1. Config check | `python3 -m stealth_board.check` | nothing | under a second |
 | 2. Tests | `python3 -m unittest discover tests` | uv | about 10 seconds |
 | 3. Smoke run | `python3 -m stealth_board.run --target example --tries 1` | browsers, internet | a few minutes |
-| 4. Full run | `xvfb-run -a python3 -m stealth_board.run` | browsers, internet | 1 to 3 hours |
+| 4. Full run | `python3 -m stealth_board.run` | browsers, internet | 1 to 3 hours |
 
-Levels 1 and 2 also run on GitHub for every push and pull request (`.github/workflows/tests.yml`).
+Levels 1 and 2 can also run on GitHub: start the **Tests** workflow by hand from the Actions tab (`.github/workflows/tests.yml`). Nothing runs there on its own.
 
 ## 1. Config check
 

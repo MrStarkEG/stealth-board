@@ -29,14 +29,10 @@ python3 -m stealth_board.run --tool camoufox --target etsy --mode headless --tri
 Run everything the way the daily run does. Results from a home connection are saved as "residential":
 
 ```sh
-xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
+python3 -m stealth_board.run --runner home --ip-type residential
 ```
 
-On a Wayland desktop, Chrome may still open its windows on your real screen. Put `env -u WAYLAND_DISPLAY` in front of the command to stop that:
-
-```sh
-env -u WAYLAND_DISPLAY xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
-```
+For headed mode the runner starts its own virtual screen with Xvfb, one per job, so no window shows up on your desktop. Without Xvfb the browsers open on your real screen.
 
 This takes one to three hours (9 tools, 12 targets, 3 tries, 2 modes). The runner tests several tools at the same time when there is enough free memory, one per 4 GB and at most 4. Set it yourself with `--jobs 2`, or use `--jobs 1` to run them one by one. Use `--tool`, `--target`, `--mode` and `--tries` to make it smaller. Each one can be repeated.
 
@@ -66,9 +62,9 @@ python3 -m http.server -d site 8000
 uv run adapters/NAME_adapter.py setup
 ```
 
-**Headed mode opens windows on my screen.** Run it under `xvfb-run -a`, as shown above.
+**Headed mode opens windows on my screen.** Xvfb is not installed. Install it (`sudo apt install xvfb`).
 
-**Headed mode fails with "no display".** There is no screen to draw on. Use `xvfb-run -a`, or run headless only with `--mode headless --mode http`.
+**Headed mode fails with "no display".** There is no screen and no Xvfb. Install Xvfb, or run headless only with `--mode headless --mode http`.
 
 **Memory.** Every fetch starts a browser and closes it again. Each job has one browser open at a time, so `--jobs 1` means one browser in total.
 

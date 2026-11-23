@@ -25,7 +25,7 @@ Save this as `run-daily.sh` next to the repo and make it executable:
 #!/bin/sh
 set -e
 cd /path/to/stealth-board
-xvfb-run -a python3 -m stealth_board.run --runner vps --ip-type datacenter
+python3 -m stealth_board.run --runner vps --ip-type datacenter
 python3 -m stealth_board.build
 ```
 
@@ -53,20 +53,20 @@ Before the first run there is no `data.json`, and the page says "No results yet"
 
 ## Memory and speed
 
-Each tool runs in its own job, and jobs run side by side. Inside one job, a tool opens one browser at a time.
+Each tool runs in its own job, and jobs run side by side. Inside one job, a tool opens one browser at a time. For headed mode, every job starts a virtual screen of its own with Xvfb, so tools cannot click into each other's windows.
 
 By default the runner looks at the free memory and starts one job per 4 GB, with a limit of 4 jobs. So a server with 2 GB free runs one tool at a time, and one with 16 GB free runs four.
 
-| Free memory | Jobs | A full run (9 tools) takes about |
+| Free memory | Jobs | A full run (9 tools), my estimate |
 |---|---|---|
 | under 8 GB | 1 | 3 hours |
 | 8 GB | 2 | 1.5 hours |
 | 16 GB or more | 4 | under 1 hour |
 
-Set it yourself with `--jobs`:
+These times are estimates from short runs, not from a measured full run. Set the number yourself with `--jobs`:
 
 ```sh
-xvfb-run -a python3 -m stealth_board.run --jobs 2 --runner vps --ip-type datacenter
+python3 -m stealth_board.run --jobs 2 --runner vps --ip-type datacenter
 ```
 
 Do not go far above 4. More jobs means more page loads at the same moment from one IP address, and sites raise their guard when they see that. The results would then say more about the server than about the libraries.

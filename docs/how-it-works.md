@@ -82,7 +82,7 @@ The build also marks two kinds of weak targets:
 
 ## 7. Running tools side by side
 
-Each tool is one job. Jobs run at the same time, as many as the free memory allows (one per 4 GB, at most 4), or as many as `--jobs` says. Inside a job, a tool opens one browser at a time, so two tries of the same tool never overlap.
+Each tool is one job. Jobs run at the same time, as many as the free memory allows (one per 4 GB, at most 4), or as many as `--jobs` says. Inside a job, a tool opens one browser at a time, so two tries of the same tool never overlap. In headed mode each job has a virtual screen of its own.
 
 ## 8. The daily run
 

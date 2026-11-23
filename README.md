@@ -83,6 +83,7 @@ stealth_board/build.py     turns results/ into site/data.json
 stealth_board/config.py    loads board.toml
 stealth_board/check.py     checks that board.toml is valid
 stealth_board/process.py   runs a command and kills everything it started
+stealth_board/display.py   a private virtual screen for headed browsers
 stealth_board/probe.py     looks at a new website before you add it
 site/                      the dashboard: index.html, style.css, app.js
 results/                   one folder per day, one JSON file per library
