@@ -21,11 +21,11 @@ from scoreboard.verdict import judge
 SETUP_TIMEOUT = 900  # browser downloads can be slow
 
 
-def call(cmd, timeout, cwd=None):
+def call(cmd, timeout, cwd=None, env=None):
     """Run cmd in its own process group. Return (returncode, stdout, stderr).
     returncode is None on timeout. The whole group is always killed at the end,
     so no browser is left running."""
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True, cwd=cwd) as p:
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True, cwd=cwd, env=env) as p:
         try:
             out, err = p.communicate(timeout=timeout)
             return p.returncode, out, err
@@ -47,20 +47,21 @@ def scrub(text):
     return re.sub(r"\s+", " ", last)[:300]
 
 
-def fetch_once(adapter, url, mode, timeout, debug_file):
-    """One try. Return (status, html, error)."""
+def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
+    """One try. Return (status, html, clicked, error)."""
+    env = os.environ | {"SCOREBOARD_CLICK": "1" if click else "0"}
     with tempfile.TemporaryDirectory() as tmp:
         outfile = Path(tmp) / "out.json"
         # Run inside the temporary folder, so files a tool drops land there and not in the repo.
-        code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp)
+        code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp, env=env)
         if not outfile.exists():
-            return None, "", scrub(err) if err.strip() else f"adapter exit code {code}"
+            return None, "", False, scrub(err) if err.strip() else f"adapter exit code {code}"
         result = json.loads(outfile.read_text())
     if debug_file:
         debug_file.parent.mkdir(parents=True, exist_ok=True)
         debug_file.write_text(result["html"])
     error = result["error"]
-    return result["status"], result["html"], scrub(error) if error else None
+    return result["status"], result["html"], result["clicked"], scrub(error) if error else None
 
 
 def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
@@ -81,14 +82,15 @@ def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
             for n in range(config["tries"]):
                 debug_file = Path(debug_dir) / f"{tool['name']}-{mode}-{target['id']}.html" if debug_dir else None
                 start = time.monotonic()
-                status, html, error = fetch_once(adapter, target["url"], mode, config["timeout"], debug_file)
+                status, html, clicked, error = fetch_once(adapter, target["url"], mode, config["timeout"], debug_file, config["click"])
                 ms = round((time.monotonic() - start) * 1000)
                 if error:
                     verdict, reason = "error", error
                 else:
                     verdict, reason = judge(status, html, target["expect"], target.get("reject"))
-                tries.append({"verdict": verdict, "reason": reason, "status": status, "ms": ms})
-                print(f"{tool['name']:20} {mode:9} {target['id']:28} {verdict:8} {reason}", flush=True)
+                tries.append({"verdict": verdict, "reason": reason, "clicked": clicked, "status": status, "ms": ms})
+                note = " (after click)" if clicked and verdict == "pass" else " (clicked)" if clicked else ""
+                print(f"{tool['name']:20} {mode:9} {target['id']:28} {verdict:9} {reason}{note}", flush=True)
     return record
 
 
@@ -103,12 +105,15 @@ def main():
     ap.add_argument("--target", action="append", help="only this target id (repeatable)")
     ap.add_argument("--mode", action="append", help="only this mode (repeatable)")
     ap.add_argument("--tries", type=int, help="override tries from the config")
+    ap.add_argument("--no-click", action="store_true", help="never click a challenge check box")
     ap.add_argument("--debug-dir", help="save the last fetched HTML of each case here")
     args = ap.parse_args()
 
     config = tomllib.loads(Path(args.config).read_text())
     if args.tries:
         config["tries"] = args.tries
+    if args.no_click:
+        config["click"] = False
     tools = [t for t in config["tool"] if not args.tool or t["name"] in args.tool]
     if args.mode:
         tools = [t | {"modes": [m for m in t["modes"] if m in args.mode]} for t in tools]
@@ -118,7 +123,7 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     for tool in tools:
         record = run_tool(tool, targets, config, args.adapters, args.debug_dir)
-        record |= {"date": date, "runner": args.runner, "ip_type": args.ip_type}
+        record |= {"date": date, "runner": args.runner, "ip_type": args.ip_type, "click": config["click"]}
         (outdir / f"{args.runner}__{tool['name']}.json").write_text(json.dumps(record, indent=1) + "\n")
         if record["setup"] == "broken":
             print(f"{tool['name']:20} BROKEN   {record['setup_error']}", flush=True)

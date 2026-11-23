@@ -2,6 +2,7 @@
 
 tries = 3      # fetches per tool, mode and target in one run
 timeout = 90   # seconds before one fetch is killed
+click = true   # when a page shows a Cloudflare check box, click it once and wait again
 
 # Tools. Each one has a script adapters/NAME_adapter.py.
 # modes: "http" for HTTP clients. Browsers use "headless" and "headed".

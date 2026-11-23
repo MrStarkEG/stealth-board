@@ -24,6 +24,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "/ok": (200, "<h1>Real products page</h1>"),
             "/block200": (200, "<title>Just a moment...</title>"),
             "/403": (403, "Forbidden"),
+            "/challenge": (403, "<title>Just a moment...</title><div class=cf-turnstile></div>"),
+            "/challenge?clicked=1": (200, "<h1>Real products page</h1>"),
         }[self.path]
         self.send_response(status)
         self.end_headers()
@@ -45,9 +47,9 @@ class RunnerTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
 
-    def run_fake(self, name, targets=None, timeout=20):
+    def run_fake(self, name, targets=None, timeout=20, click=True):
         tool = {"name": name, "modes": ["http"]}
-        return run_tool(tool, targets or self.targets, {"tries": 1, "timeout": timeout}, FAKES)
+        return run_tool(tool, targets or self.targets, {"tries": 1, "timeout": timeout, "click": click}, FAKES)
 
     def test_verdicts(self):
         record = self.run_fake("plain", timeout=4)
@@ -55,9 +57,16 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(record["version"], "1.2.3")
         got = {tid: (tries[0]["verdict"], tries[0]["reason"]) for tid, tries in record["modes"]["http"].items()}
         self.assertEqual(got["ok"], ("pass", ""))
-        self.assertEqual(got["block200"], ("blocked", "cloudflare challenge"))
+        self.assertEqual(got["block200"], ("challenge", "cloudflare challenge"))
         self.assertEqual(got["403"], ("blocked", "http 403"))
         self.assertEqual(got["hang"], ("error", "timeout after 4s"))
+
+    def test_click_moves_a_challenge_forward(self):
+        target = [{"id": "box", "url": self.targets[0]["url"].replace("/ok", "/challenge"), "expect": "Real products"}]
+        with_click = self.run_fake("clicker", target)["modes"]["http"]["box"][0]
+        self.assertEqual((with_click["verdict"], with_click["clicked"]), ("pass", True))
+        without = self.run_fake("clicker", target, click=False)["modes"]["http"]["box"][0]
+        self.assertEqual((without["verdict"], without["reason"], without["clicked"]), ("challenge", "cloudflare challenge", False))
 
     def test_broken_setup_is_recorded(self):
         record = self.run_fake("broken_setup")

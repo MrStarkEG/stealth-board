@@ -11,7 +11,7 @@ if sys.argv[1] == "setup":
 _, _, url, mode, outfile = sys.argv
 try:
     with urllib.request.urlopen(url) as r:
-        result = {"status": r.status, "html": r.read().decode(), "error": None}
+        result = {"status": r.status, "html": r.read().decode(), "clicked": False, "error": None}
 except urllib.error.HTTPError as e:
-    result = {"status": e.code, "html": e.read().decode(), "error": None}
+    result = {"status": e.code, "html": e.read().decode(), "clicked": False, "error": None}
 json.dump(result, open(outfile, "w"))
