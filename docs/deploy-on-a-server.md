@@ -57,12 +57,13 @@ The `Dockerfile` holds Chrome, the virtual screen and uv, so nothing is installe
 
 ```sh
 docker build -t stealth-board .
-docker run --rm --shm-size 2g --memory 12g --cpus 6 \
+docker run --rm --init --shm-size 2g --memory 12g --cpus 6 \
     -v "$PWD/results:/app/results" \
     stealth-board python3 -m stealth_board.run --jobs 2 --runner vps --ip-type datacenter
 python3 -m stealth_board.build
 ```
 
+- `--init`: browsers leave many finished child processes behind. This flag adds a small init process that clears them. Without it they pile up until the container hits its process limit.
 - `--shm-size 2g`: browsers need more shared memory than Docker gives by default.
 - `--memory` and `--cpus` keep the run from taking resources from other work on the server. The runner picks its job count from the free memory it sees, so set `--jobs` yourself here.
 - The results land in `results/` on the host, and the build step runs on the host with plain Python.
