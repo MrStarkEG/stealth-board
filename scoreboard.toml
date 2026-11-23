@@ -29,6 +29,10 @@ modes = ["headless", "headed"]
 name = "camoufox"
 modes = ["headless", "headed"]
 
+[[tool]]
+name = "nodriver"
+modes = ["headless", "headed"]
+
 # Targets. A try passes when the page HTML matches "expect".
 # "reject" is for test pages that load fine but say "you are a bot".
 
