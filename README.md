@@ -97,9 +97,13 @@ docs/                the guides below
 - [Publish it on GitHub](docs/publish-on-github.md): the daily run and the dashboard
 - [Keeping it running](docs/maintenance.md): what runs on its own and what needs a person
 
-## Fair use
+## Why this exists, and fair use
 
-The tests are small on purpose: a few page loads per site per day, on public pages, with no login and no data kept. Please keep it that way when you add targets. This project measures open source tools. It does not ship a way to scrape any site.
+I built this to help the scraping community. People who collect public data need to know which open source tool still works today, and nobody publishes that in one place.
+
+This is legal to do. The project only loads public pages, the same way a browser does, a few times a day, with no login. It keeps no page content, only "passed" or "blocked". It measures open source tools that anyone can already download. It does not ship a way to scrape any site.
+
+Please keep it that way when you add targets: public pages only, a small number of loads, and no personal data. Laws and site terms differ between countries, so check the rules that apply to you before you run it on your own.
 
 ## License
 
