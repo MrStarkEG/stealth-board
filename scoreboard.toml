@@ -25,6 +25,10 @@ modes = ["http"]
 name = "patchright"
 modes = ["headless", "headed"]
 
+[[tool]]
+name = "camoufox"
+modes = ["headless", "headed"]
+
 # Targets. A try passes when the page HTML matches "expect".
 # "reject" is for test pages that load fine but say "you are a bot".
 
