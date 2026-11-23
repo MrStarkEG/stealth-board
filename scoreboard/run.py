@@ -50,8 +50,10 @@ def scrub(text):
 
 def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
     """One try. Return (status, html, clicked, error)."""
-    env = os.environ | {"SCOREBOARD_CLICK": "1" if click else "0"}
     with tempfile.TemporaryDirectory() as tmp:
+        # TMPDIR points into the temporary folder, so browser profiles land there and
+        # are deleted with it, also when the browser was killed.
+        env = os.environ | {"SCOREBOARD_CLICK": "1" if click else "0", "TMPDIR": tmp}
         outfile = Path(tmp) / "out.json"
         # Run inside the temporary folder, so files a tool drops land there and not in the repo.
         code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp, env=env)

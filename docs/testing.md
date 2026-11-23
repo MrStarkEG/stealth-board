@@ -24,7 +24,7 @@ They need no browser and no outside network. Everything runs against a small web
 | `tests/test_verdict.py` | Each sample page in `tests/pages/` gets the right result: pass, challenge or blocked, with the right reason. |
 | `tests/test_check.py` | The real config is valid, every adapter file is listed in it, and the checker finds each kind of mistake. |
 | `tests/test_probe.py` | The website probe names the right vendor from headers and page text. |
-| `tests/test_run.py` | The runner end to end, with fake adapters in `tests/fake_adapters/`: a real page, a block page with status 200, a 403, a page that hangs, a setup that fails, a crash, a click that opens a challenge, and a browser that must not stay alive after a timeout. |
+| `tests/test_run.py` | The runner end to end, with fake adapters in `tests/fake_adapters/`: a real page, a block page with status 200, a 403, a page that hangs, a setup that fails, a crash, a click that opens a challenge, a browser that must not stay alive after a timeout, and temporary files that must not stay behind. |
 | `tests/test_build.py` | The 7 and 30 day numbers on made-up history, the marks on weak targets, and broken tools. |
 
 Run one file or one test:

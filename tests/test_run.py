@@ -4,7 +4,9 @@
 """
 
 import http.server
+import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import unittest
@@ -80,6 +82,16 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(tries[0]["verdict"], "error")
         self.assertIn("browser crashed", tries[0]["reason"])
         self.assertNotIn("/home/", tries[0]["reason"])
+
+    def test_temporary_files_of_a_tool_are_removed(self):
+        target = [{"id": "ok", "url": self.targets[0]["url"], "expect": "profile-"}]
+        debug = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, debug)
+        tool = {"name": "litter", "modes": ["http"]}
+        record = run_tool(tool, target, {"tries": 1, "timeout": 20, "click": True}, FAKES, debug)
+        self.assertEqual(record["modes"]["http"]["ok"][0]["verdict"], "pass")
+        left_behind = Path((debug / "litter-http-ok.html").read_text())
+        self.assertFalse(left_behind.exists())
 
     def test_timeout_kills_child_processes(self):
         record = self.run_fake("leaky", self.targets[:1], timeout=3)
