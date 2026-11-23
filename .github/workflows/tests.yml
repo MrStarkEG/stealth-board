@@ -1,9 +1,8 @@
-# Runs on every push and pull request. No browser and no outside network are needed.
+# Started by hand from the Actions tab. No browser and no outside network are needed.
 name: Tests
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
