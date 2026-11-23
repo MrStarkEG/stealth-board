@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import subprocess
 import unittest
 from unittest import mock
 
@@ -15,6 +16,14 @@ class DisplayTest(unittest.TestCase):
             self.assertRegex(first["DISPLAY"], r"^:\d+$")
             self.assertNotEqual(first["DISPLAY"], second["DISPLAY"])
             self.assertNotIn("WAYLAND_DISPLAY", first)
+
+    @unittest.skipUnless(shutil.which("Xvfb") and shutil.which("xdpyinfo"), "needs Xvfb and xdpyinfo")
+    def test_the_screen_refuses_clients_without_the_cookie(self):
+        with headed_environment() as environment:
+            with_cookie = subprocess.run(["xdpyinfo"], env=environment, capture_output=True)
+            without_cookie = subprocess.run(["xdpyinfo"], env=environment | {"XAUTHORITY": "/dev/null"}, capture_output=True)
+        self.assertEqual(with_cookie.returncode, 0)
+        self.assertNotEqual(without_cookie.returncode, 0)
 
     def test_without_xvfb_the_real_screen_is_used(self):
         with mock.patch("shutil.which", return_value=None):

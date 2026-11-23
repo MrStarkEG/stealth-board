@@ -5,7 +5,7 @@
 - Python 3.11 or newer
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - Google Chrome (patchright, nodriver, zendriver and seleniumbase drive the installed Chrome)
-- On Linux, for headed mode with no visible windows: `sudo apt install xvfb`
+- On Linux, for headed mode with no visible windows: `sudo apt install xvfb xauth`
 
 The runner itself uses only the Python standard library. There is nothing to `pip install`.
 
@@ -62,7 +62,7 @@ python3 -m http.server -d site 8000
 uv run adapters/NAME_adapter.py setup
 ```
 
-**Headed mode opens windows on my screen.** Xvfb is not installed. Install it (`sudo apt install xvfb`).
+**Headed mode opens windows on my screen.** Xvfb is not installed. Install it (`sudo apt install xvfb xauth`).
 
 **Headed mode fails with "no display".** There is no screen and no Xvfb. Install Xvfb, or run headless only with `--mode headless --mode http`.
 

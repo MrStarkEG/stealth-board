@@ -5,7 +5,7 @@ Any Linux server works. There is no database and no backend: a daily job writes 
 ## 1. Install
 
 ```sh
-sudo apt install xvfb
+sudo apt install xvfb xauth
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
