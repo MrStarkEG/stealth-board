@@ -45,13 +45,109 @@ modes = ["headless", "headed"]
 name = "seleniumbase"
 modes = ["headless", "headed"]
 
-# Targets. A try passes when the page HTML matches "expect".
-# "reject" is for test pages that load fine but say "you are a bot".
+# Targets. A try passes when the page HTML matches "expect" (a regular expression).
+# kind: "open" has no protection, "test" is a bot test page, "site" is a protected site.
+# Only "test" and "site" count for the score.
+# The vendor of each site was confirmed from its own response, see the note on each one.
 
 [[target]]
 id = "example"
-name = "example.com (no protection)"
+name = "example.com"
 kind = "open"
 vendor = "none"
 url = "https://example.com/"
 expect = "Example Domain"
+
+[[target]]
+id = "browserscan"
+name = "BrowserScan"
+kind = "test"
+vendor = "bot test"
+url = "https://www.browserscan.net/bot-detection"
+expect = 'Test Results:</strong>(<[^>]*>|\s)*Normal'
+
+[[target]]
+id = "deviceandbrowserinfo"
+name = "DeviceAndBrowserInfo"
+kind = "test"
+vendor = "bot test"
+url = "https://deviceandbrowserinfo.com/are_you_a_bot"
+expect = "You are human"
+
+# A practice page made for testing scrapers. It sits behind a Cloudflare challenge.
+[[target]]
+id = "cloudflare-practice"
+name = "ScrapingCourse challenge"
+kind = "site"
+vendor = "Cloudflare"
+url = "https://www.scrapingcourse.com/cloudflare-challenge"
+expect = "You bypassed the Cloudflare challenge"
+
+# A demo page behind a Cloudflare Turnstile challenge.
+[[target]]
+id = "cloudflare-turnstile"
+name = "NopeCHA demo"
+kind = "site"
+vendor = "Cloudflare"
+url = "https://nopecha.com/demo/cloudflare"
+expect = 'id="padded_content"'
+
+# Confirmed: "server: cloudflare" header and a "Just a moment..." page for plain clients.
+[[target]]
+id = "glassdoor"
+name = "Glassdoor"
+kind = "site"
+vendor = "Cloudflare"
+url = "https://www.glassdoor.com/"
+expect = "<title[^>]*>Glassdoor"
+
+# Confirmed for the four below: "x-datadome" header and a captcha-delivery.com page for plain clients.
+[[target]]
+id = "etsy"
+name = "Etsy"
+kind = "site"
+vendor = "DataDome"
+url = "https://www.etsy.com/"
+expect = "<title[^>]*>Etsy"
+
+[[target]]
+id = "tripadvisor"
+name = "Tripadvisor"
+kind = "site"
+vendor = "DataDome"
+url = "https://www.tripadvisor.com/"
+expect = "<title[^>]*>Tripadvisor"
+
+[[target]]
+id = "leboncoin"
+name = "Leboncoin"
+kind = "site"
+vendor = "DataDome"
+url = "https://www.leboncoin.fr/"
+expect = "site de petites annonces"
+
+[[target]]
+id = "g2"
+name = "G2"
+kind = "site"
+vendor = "DataDome"
+url = "https://www.g2.com/"
+expect = "Business Software and Services Reviews"
+
+# Confirmed: "_px" cookies and a px-captcha page for plain clients.
+[[target]]
+id = "zillow"
+name = "Zillow"
+kind = "site"
+vendor = "HUMAN (PerimeterX)"
+url = "https://www.zillow.com/"
+expect = "<title[^>]*>Zillow: Real Estate"
+
+# Confirmed: "_abck" cookie and an "Access Denied" page for plain clients.
+[[target]]
+id = "lowes"
+name = "Lowe's"
+kind = "site"
+vendor = "Akamai"
+url = "https://www.lowes.com/"
+expect = "<title[^>]*>Lowe.s Home Improvement"
