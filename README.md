@@ -1,0 +1,95 @@
+# Stealth Scoreboard
+
+Which open source scraping library still gets past bot protection today?
+
+Stealth libraries break often. A new Chrome release or a new protection rule can stop one overnight, and nobody tells you. This project opens the same list of pages with every library once a day, using each library's newest release, and shows the results on one page.
+
+- It runs for free on GitHub Actions. There are no servers and no proxies.
+- The results are plain JSON files in this repo. There is no database.
+- The dashboard is one static HTML page.
+
+## What a result means
+
+One **try** is one page load by one library. A try **passes** only when the real page content comes back. A status code of 200 is not enough, because block pages often return 200.
+
+Each run makes 3 tries per library, mode and target. The dashboard shows the pass rate over the last 7 and 30 days.
+
+## What is tested
+
+Libraries (the list lives in [`scoreboard.toml`](scoreboard.toml)):
+
+| Library | What it is | Modes |
+|---|---|---|
+| requests | Control. Plain HTTP with no stealth | http |
+| playwright | Control. Plain Playwright with no stealth | headless, headed |
+| curl_cffi | HTTP client with Chrome's TLS fingerprint | http |
+| patchright | Patched Playwright, driving real Chrome | headless, headed |
+| camoufox | Firefox build that changes its fingerprint | headless, headed |
+| nodriver | Drives Chrome over the DevTools protocol | headless, headed |
+| zendriver | Kept-up fork of nodriver | headless, headed |
+| scrapling | Scraping framework, its StealthyFetcher | headless, headed |
+| seleniumbase | Its "Pure CDP Mode" | headless, headed |
+
+**headless** means the browser has no window. **headed** means a real window on a virtual screen. Headed is harder to detect and uses more memory. Every library runs with the settings its own README recommends. Each adapter file says which settings and why.
+
+Targets:
+
+- one open page with no protection, as a sanity check
+- two bot test pages that say if they see a robot
+- nine pages behind Cloudflare, DataDome, HUMAN (PerimeterX) and Akamai
+
+The two **controls** have no stealth at all. If a control opens a protected target, that target proves little, and the dashboard marks it.
+
+## What this does not tell you
+
+- Each test is one page load from one IP address with no proxy. It says nothing about thousands of requests.
+- It loads one page. Logging in, clicking around, and other pages of the same site can be harder.
+- GitHub's machines have datacenter IPs, which protection systems trust the least. A home connection often does better. The dashboard keeps the two IP types apart.
+- Sites change their protection, so a target can get easier or harder with no change in the library.
+
+## Try it on your machine
+
+You need Python 3.11 or newer, [uv](https://docs.astral.sh/uv/) and Google Chrome.
+
+```sh
+# one library, one target, one try, no window
+python3 -m scoreboard.run --tool patchright --target cloudflare-practice --mode headless --tries 1
+
+# build the dashboard data and open the page
+python3 -m scoreboard.build
+python3 -m http.server -d site 8000   # then open http://localhost:8000
+```
+
+The first run of a library downloads its browser, which can take a few minutes. More in [docs/run-locally.md](docs/run-locally.md).
+
+## What is in this repo
+
+```
+scoreboard.toml      the list of libraries and targets, and the run settings
+adapters/            one small script per library
+scoreboard/run.py    runs the libraries against the targets, writes results/
+scoreboard/verdict.py  decides pass or blocked
+scoreboard/build.py  turns results/ into site/data.json
+site/index.html      the dashboard
+results/             one folder per day, one JSON file per library
+tests/               tests that run against a local web server
+.github/workflows/   the daily run
+docs/                the guides below
+```
+
+## Guides
+
+- [How it works](docs/how-it-works.md): the full path from a URL to a number on the dashboard
+- [Run it locally](docs/run-locally.md): setup, commands, and fixing common problems
+- [Add a library](docs/add-a-library.md)
+- [Add a target](docs/add-a-target.md)
+- [Publish it on GitHub](docs/publish-on-github.md): the daily run and the dashboard
+- [Keeping it running](docs/maintenance.md): what runs on its own and what needs a person
+
+## Fair use
+
+The tests are small on purpose: a few page loads per site per day, on public pages, with no login and no data kept. Please keep it that way when you add targets. This project measures open source tools. It does not ship a way to scrape any site.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

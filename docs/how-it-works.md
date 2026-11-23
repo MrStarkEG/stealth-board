@@ -1,0 +1,79 @@
+# How it works
+
+This page follows one test from start to end.
+
+## 1. The config
+
+[`scoreboard.toml`](../scoreboard.toml) lists the tools and the targets.
+
+A tool has a name and its modes. A target has a URL and an `expect` pattern, which is text that only the real page has.
+
+## 2. The adapter
+
+Each tool has one script in `adapters/`, named `NAME_adapter.py`. All adapters do the same two jobs:
+
+```sh
+uv run adapters/NAME_adapter.py setup                       # install the browser, print the tool version
+uv run adapters/NAME_adapter.py fetch URL MODE OUTFILE      # open URL once, write the page to OUTFILE
+```
+
+The top of each script lists its dependencies:
+
+```python
+# /// script
+# requires-python = ">=3.11,<3.14"
+# dependencies = ["patchright"]
+# ///
+```
+
+`uv` reads this and runs the script in its own environment. This gives us two things:
+
+- Tools never clash, even when two of them need different versions of the same package.
+- No version is pinned, so every run uses the newest release. That is the point of the scoreboard.
+
+## 3. The runner
+
+`scoreboard/run.py` does this for each tool:
+
+1. Run `setup`. If it fails, save the tool as **broken** and go on to the next tool.
+2. For each mode, target and try, run `fetch` as a new process.
+3. Kill the whole process group afterwards, so no browser stays behind. A fetch that takes longer than `timeout` is killed and saved as an **error**.
+4. Pass the page to the verdict rules.
+
+Every fetch is a new process with a new empty browser profile. Nothing is shared between tries.
+
+## 4. The verdict
+
+`scoreboard/verdict.py` gives each try one of three results:
+
+| Result | Meaning |
+|---|---|
+| pass | the `expect` pattern is in the page |
+| blocked | the page came back, but it is not the real page |
+| error | the tool crashed, or the fetch timed out |
+
+For a blocked page it also saves a reason, like "cloudflare challenge" or "http 403". The reason is only a label. Pass or blocked is decided by `expect` alone.
+
+## 5. The results
+
+The runner writes one file per tool and day: `results/2026-11-21/github__patchright.json`.
+
+The file holds the tool version, the date, the runner name, the IP type (datacenter or residential), and every try. It never holds an IP address, a host name or a page.
+
+## 6. The dashboard
+
+`scoreboard/build.py` reads all result files and writes `site/data.json` with the 7 and 30 day pass rates. `site/index.html` reads that file and draws the table.
+
+The build also marks two kinds of weak targets:
+
+- a control opens it, so it has no real protection
+- no tool opened it for 7 days, so the target or its `expect` pattern may be out of date
+
+## 7. The daily run
+
+`.github/workflows/daily.yml` runs on GitHub every day:
+
+1. One job per tool runs the runner under a virtual screen.
+2. A last job collects the result files, commits them, builds `data.json`, and publishes `site/` to GitHub Pages.
+
+The workflow only calls the commands above, so anything that works on your machine works there.
