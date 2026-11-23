@@ -16,6 +16,6 @@ def fetch(url, headless):
     return page.status, page.html_content
 
 
-# "scrapling install" also runs "playwright install-deps", which needs root.
-# The browser download is the part we need. Chrome's system libraries are already there.
-run("scrapling", fetch, setup=[["playwright", "install", "chromium"]])
+# "scrapling install" also runs a step that needs root, so download the browsers directly.
+# StealthyFetcher drives Chromium through Patchright, which wants its own download.
+run("scrapling", fetch, setup=[["playwright", "install", "chromium"], ["patchright", "install", "chromium"]])
