@@ -13,6 +13,7 @@ import re
 import shutil
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,10 @@ from stealth_board.verdict import judge_page
 
 SETUP_TIMEOUT_SECONDS = 900  # browser downloads can be slow
 ERROR_MAX_LENGTH = 300
+
+# How many tools run at the same time when --jobs is not given.
+MEMORY_GB_PER_JOB = 4
+MAX_AUTO_JOBS = 4
 
 
 @dataclass(frozen=True)
@@ -122,6 +127,22 @@ def save_debug_page(debug_dir, tool, mode, target, page):
     (debug_dir / f"{tool.name}-{mode}-{target.id}.html").write_text(page.html)
 
 
+def pick_job_count(tool_count):
+    """One job per MEMORY_GB_PER_JOB of free memory, so a small machine runs one tool at a time."""
+    free_gb = free_memory_gb()
+    if free_gb is None:
+        return 1
+    return max(1, min(tool_count, MAX_AUTO_JOBS, int(free_gb // MEMORY_GB_PER_JOB)))
+
+
+def free_memory_gb():
+    meminfo = Path("/proc/meminfo")
+    if not meminfo.exists():
+        return None
+    available_kb = int(re.search(r"MemAvailable:\s+(\d+)", meminfo.read_text()).group(1))
+    return available_kb / 1024**2
+
+
 def select(config, tool_names, target_ids, modes):
     """Narrow the config to what the command line asked for. None keeps everything."""
     tools = [tool for tool in config.tools if tool_names is None or tool.name in tool_names]
@@ -142,6 +163,7 @@ def parse_args():
     parser.add_argument("--target", action="append", help="only this target id (repeatable)")
     parser.add_argument("--mode", action="append", help="only this mode (repeatable)")
     parser.add_argument("--tries", type=int, help="override tries from the config")
+    parser.add_argument("--jobs", type=int, help="tools to run at the same time (default: from free memory)")
     parser.add_argument("--no-click", action="store_true", help="never click a challenge check box")
     parser.add_argument("--debug-dir", help="save the last fetched HTML of each case here")
     return parser.parse_args()
@@ -169,8 +191,10 @@ def main():
         record |= {"date": date, "runner": args.runner, "ip_type": args.ip_type, "click": config.click}
         (out_dir / f"{args.runner}__{tool.name}.json").write_text(json.dumps(record, indent=1) + "\n")
 
-    for tool in config.tools:
-        run_and_save(tool)
+    jobs = args.jobs if args.jobs is not None else pick_job_count(len(config.tools))
+    print(f"running {len(config.tools)} tools, {jobs} at a time", flush=True)
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
+        list(pool.map(run_and_save, config.tools))
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from stealth_board import run
 from stealth_board.config import Config, Target, Tool
@@ -131,6 +132,27 @@ class SelectTest(unittest.TestCase):
         self.assertEqual([tool.name for tool in chosen.tools], ["browser"])
         self.assertEqual(chosen.tools[0].modes, ("headed",))
         self.assertEqual([target.id for target in chosen.targets], ["blog"])
+
+
+class JobCountTest(unittest.TestCase):
+    def job_count(self, free_gb, tool_count=9):
+        with mock.patch.object(run, "free_memory_gb", return_value=free_gb):
+            return run.pick_job_count(tool_count)
+
+    def test_small_machine_runs_one_at_a_time(self):
+        self.assertEqual(self.job_count(free_gb=2), 1)
+        self.assertEqual(self.job_count(free_gb=7.9), 1)
+
+    def test_more_memory_means_more_jobs(self):
+        self.assertEqual(self.job_count(free_gb=8), 2)
+        self.assertEqual(self.job_count(free_gb=13), 3)
+
+    def test_never_more_than_the_limit_or_the_tools(self):
+        self.assertEqual(self.job_count(free_gb=256), run.MAX_AUTO_JOBS)
+        self.assertEqual(self.job_count(free_gb=256, tool_count=2), 2)
+
+    def test_unknown_memory_runs_one_at_a_time(self):
+        self.assertEqual(self.job_count(free_gb=None), 1)
 
 
 if __name__ == "__main__":
