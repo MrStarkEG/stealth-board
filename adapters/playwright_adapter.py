@@ -7,7 +7,7 @@ The stealth tools should beat this. If they do not, they add nothing."""
 
 from playwright.sync_api import sync_playwright
 
-from _common import NAV_TIMEOUT_MS, SETTLE_MS, run
+from _common import NAV_TIMEOUT_MS, run, settle
 
 
 def fetch(url, headless):
@@ -15,10 +15,10 @@ def fetch(url, headless):
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
         response = page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-        page.wait_for_timeout(SETTLE_MS)
+        clicked = settle(page)
         html = page.content()
         browser.close()
-        return response.status if response else None, html
+        return response.status if response else None, html, clicked
 
 
 run("playwright", fetch, setup=[["playwright", "install", "chromium"]])

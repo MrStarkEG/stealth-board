@@ -8,15 +8,15 @@ matching fingerprint on its own."""
 
 from camoufox.sync_api import Camoufox
 
-from _common import NAV_TIMEOUT_MS, SETTLE_MS, run
+from _common import NAV_TIMEOUT_MS, run, settle
 
 
 def fetch(url, headless):
     with Camoufox(headless=headless) as browser:
         page = browser.new_page()
         response = page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-        page.wait_for_timeout(SETTLE_MS)
-        return response.status if response else None, page.content()
+        clicked = settle(page)
+        return response.status if response else None, page.content(), clicked
 
 
 run("camoufox", fetch, setup=[["camoufox", "fetch"]])

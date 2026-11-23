@@ -4,7 +4,9 @@
 # ///
 """nodriver: drives the installed Chrome over the DevTools protocol, with no
 WebDriver and no Playwright. Settings from its README: the default start(),
-which uses a new temporary profile. It does not report the HTTP status."""
+which uses a new temporary profile. It does not report the HTTP status.
+It has a verify_cf() helper, but that one finds the box by matching a picture
+of the English widget, so this adapter does not click."""
 
 import nodriver
 
