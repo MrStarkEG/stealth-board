@@ -41,7 +41,8 @@ def call(cmd, timeout, cwd=None):
 def scrub(text):
     """Short, one line, and no home path. Results are public."""
     text = re.sub(r"/(home|Users)/[^/\s]+", "~", text.replace(str(Path.home()), "~")).strip()
-    lines = text.splitlines()
+    # Some tools print a box of advice after the real error. Skip the box.
+    lines = [line for line in text.splitlines() if not line.startswith(("╔", "║", "╚"))]
     last = lines[-1] if lines else ""
     return re.sub(r"\s+", " ", last)[:300]
 
