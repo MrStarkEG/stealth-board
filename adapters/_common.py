@@ -13,6 +13,7 @@ import importlib.metadata
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 # Browser adapters wait this long after the page loads, so a challenge page
 # has time to finish and send the browser on to the real page.
@@ -22,10 +23,12 @@ NAV_TIMEOUT_MS = 45000
 
 def run(package, fetch, setup=()):
     """package: the PyPI name, for the version. fetch(url, headless) -> (status, html).
-    setup: list of "python -m" argument lists to run once before the first fetch."""
+    setup: commands to run once before the first fetch, like ["playwright", "install", "chromium"].
+    The first word is a command the package installs."""
     if sys.argv[1] == "setup":
-        for args in setup:
-            subprocess.run([sys.executable, "-m", *args], check=True, stdout=sys.stderr)
+        bin_dir = Path(sys.executable).parent
+        for command, *args in setup:
+            subprocess.run([bin_dir / command, *args], check=True, stdout=sys.stderr)
         print(importlib.metadata.version(package))
         return
     _, _, url, mode, outfile = sys.argv
