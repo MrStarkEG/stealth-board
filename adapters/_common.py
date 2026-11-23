@@ -11,7 +11,7 @@ of the script and runs it in its own environment, so tools never clash.
 Clicking the challenge box: when a page shows a Cloudflare check box, the adapter
 may click it once and wait again. "clicked" says what happened: true (clicked),
 false (no box was found), null (the tool has its own solver and does not tell us).
-The runner turns this off with SCOREBOARD_CLICK=0.
+The runner turns this off with STEALTH_BOARD_CLICK=0.
 """
 
 import importlib.metadata
@@ -25,7 +25,7 @@ from pathlib import Path
 # has time to finish and send the browser on to the real page.
 SETTLE_MS = 8000
 NAV_TIMEOUT_MS = 45000
-CLICK = os.environ.get("SCOREBOARD_CLICK", "1") == "1"
+CLICK = os.environ.get("STEALTH_BOARD_CLICK", "1") == "1"
 
 
 def find_challenge_box(page):

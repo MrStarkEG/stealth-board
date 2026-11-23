@@ -1,6 +1,6 @@
-"""Check that scoreboard.toml is valid, before a run wastes an hour on a typo.
+"""Check that board.toml is valid, before a run wastes an hour on a typo.
 
-    python -m scoreboard.check
+    python -m stealth_board.check
 """
 
 import argparse
@@ -69,7 +69,7 @@ def problems(config, adapters_dir="adapters"):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", default="scoreboard.toml")
+    ap.add_argument("--config", default="board.toml")
     ap.add_argument("--adapters", default="adapters")
     args = ap.parse_args()
     config = tomllib.loads(Path(args.config).read_text())

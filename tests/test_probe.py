@@ -4,7 +4,7 @@ import http.server
 import threading
 import unittest
 
-from scoreboard.probe import detect, get, report
+from stealth_board.probe import detect, get, report
 
 
 class Handler(http.server.BaseHTTPRequestHandler):

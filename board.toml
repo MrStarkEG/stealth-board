@@ -1,4 +1,4 @@
-# Everything the scoreboard tests is listed in this one file.
+# Everything the board tests is listed in this one file.
 
 tries = 3      # fetches per tool, mode and target in one run
 timeout = 90   # seconds before one fetch is killed

@@ -44,7 +44,7 @@ Rules:
 
 ## 2. Add it to the config
 
-In `scoreboard.toml`:
+In `board.toml`:
 
 ```toml
 [[tool]]
@@ -55,8 +55,8 @@ modes = ["headless", "headed"]   # or ["http"] for an HTTP client
 ## 3. Try it
 
 ```sh
-python3 -m scoreboard.run --tool somelib --target example --tries 1
-python3 -m scoreboard.run --tool somelib --tries 1
+python3 -m stealth_board.run --tool somelib --target example --tries 1
+python3 -m stealth_board.run --tool somelib --tries 1
 ```
 
 The first command must pass. Run `python3 -m unittest discover tests` too: one test checks that every adapter file is listed in the config. `example` has no protection, so a failure there is a bug in the adapter.

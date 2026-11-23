@@ -1,6 +1,6 @@
 """Look at a website before you add it as a target.
 
-    python -m scoreboard.probe https://www.example-shop.com/
+    python -m stealth_board.probe https://www.example-shop.com/
 
 It loads the page once with a plain HTTP client and prints what protection
 it sees. It does not change any file.
@@ -11,7 +11,7 @@ import re
 import urllib.error
 import urllib.request
 
-from scoreboard.verdict import judge
+from stealth_board.verdict import judge
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 
@@ -66,8 +66,8 @@ def report(url, status, headers, body):
         lines.append("plain client: got a page. If this is the real page, the site does not block plain tools, and it is a weak target.")
     lines += [
         "",
-        "Next: add a draft [[target]] to scoreboard.toml, then see which tools get in:",
-        "  python -m scoreboard.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug",
+        "Next: add a draft [[target]] to board.toml, then see which tools get in:",
+        "  python -m stealth_board.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug",
     ]
     return lines
 

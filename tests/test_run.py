@@ -12,7 +12,7 @@ import time
 import unittest
 from pathlib import Path
 
-from scoreboard.run import run_tool
+from stealth_board.run import run_tool
 
 FAKES = Path(__file__).parent / "fake_adapters"
 

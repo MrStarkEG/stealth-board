@@ -1,4 +1,4 @@
-# Stealth Scoreboard
+# Stealth Board
 
 Which open source scraping library still gets past bot protection today?
 
@@ -24,7 +24,7 @@ Each run makes 3 tries per library, mode and target. The dashboard shows the pas
 
 ## What is tested
 
-Libraries (the list lives in [`scoreboard.toml`](scoreboard.toml)):
+Libraries (the list lives in [`board.toml`](board.toml)):
 
 | Library | What it is | Modes |
 |---|---|---|
@@ -61,10 +61,10 @@ You need Python 3.11 or newer, [uv](https://docs.astral.sh/uv/) and Google Chrom
 
 ```sh
 # one library, one target, one try, no window
-python3 -m scoreboard.run --tool patchright --target cloudflare-practice --mode headless --tries 1
+python3 -m stealth_board.run --tool patchright --target cloudflare-practice --mode headless --tries 1
 
 # build the dashboard data and open the page
-python3 -m scoreboard.build
+python3 -m stealth_board.build
 python3 -m http.server -d site 8000   # then open http://localhost:8000
 ```
 
@@ -73,13 +73,13 @@ The first run of a library downloads its browser, which can take a few minutes. 
 ## What is in this repo
 
 ```
-scoreboard.toml      the list of libraries and targets, and the run settings
+board.toml      the list of libraries and targets, and the run settings
 adapters/            one small script per library
-scoreboard/run.py    runs the libraries against the targets, writes results/
-scoreboard/verdict.py  decides pass, challenge or blocked
-scoreboard/build.py  turns results/ into site/data.json
-scoreboard/check.py  checks that scoreboard.toml is valid
-scoreboard/probe.py  looks at a new website before you add it
+stealth_board/run.py    runs the libraries against the targets, writes results/
+stealth_board/verdict.py  decides pass, challenge or blocked
+stealth_board/build.py  turns results/ into site/data.json
+stealth_board/check.py  checks that board.toml is valid
+stealth_board/probe.py  looks at a new website before you add it
 site/index.html      the dashboard
 results/             one folder per day, one JSON file per library
 tests/               tests that run against a local web server, with sample block pages

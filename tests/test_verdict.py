@@ -1,13 +1,13 @@
 """Check the verdict rules on sample pages.
 
 Each file in tests/pages/ is a small copy of a page type we met on real sites.
-When you add a marker to scoreboard/verdict.py, add a sample page and a line here.
+When you add a marker to stealth_board/verdict.py, add a sample page and a line here.
 """
 
 import unittest
 from pathlib import Path
 
-from scoreboard.verdict import judge
+from stealth_board.verdict import judge
 
 PAGES = Path(__file__).parent / "pages"
 EXPECT = "Garden Tools"

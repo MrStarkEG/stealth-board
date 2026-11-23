@@ -14,7 +14,7 @@ The runner itself uses only the Python standard library. There is nothing to `pi
 Check the config and run the tests. They use a local web server and fake adapters, so they need no browser:
 
 ```sh
-python3 -m scoreboard.check
+python3 -m stealth_board.check
 python3 -m unittest discover tests
 ```
 
@@ -23,19 +23,19 @@ python3 -m unittest discover tests
 Run one small case:
 
 ```sh
-python3 -m scoreboard.run --tool camoufox --target etsy --mode headless --tries 1
+python3 -m stealth_board.run --tool camoufox --target etsy --mode headless --tries 1
 ```
 
 Run everything the way the daily run does. Results from a home connection are saved as "residential":
 
 ```sh
-xvfb-run -a python3 -m scoreboard.run --runner home --ip-type residential
+xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
 ```
 
 On a Wayland desktop, Chrome may still open its windows on your real screen. Put `env -u WAYLAND_DISPLAY` in front of the command to stop that:
 
 ```sh
-env -u WAYLAND_DISPLAY xvfb-run -a python3 -m scoreboard.run --runner home --ip-type residential
+env -u WAYLAND_DISPLAY xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
 ```
 
 This takes a long time (9 tools, 12 targets, 3 tries, 2 modes). Use `--tool`, `--target`, `--mode` and `--tries` to make it smaller. Each one can be repeated.
@@ -45,14 +45,14 @@ Where results go: one file per tool, day and runner name, `results/DATE/RUNNER__
 Look at the page a tool got back:
 
 ```sh
-python3 -m scoreboard.run --tool playwright --target zillow --tries 1 --debug-dir debug
+python3 -m stealth_board.run --tool playwright --target zillow --tries 1 --debug-dir debug
 # then open debug/playwright-headless-zillow.html
 ```
 
 Build and view the dashboard:
 
 ```sh
-python3 -m scoreboard.build
+python3 -m stealth_board.build
 python3 -m http.server -d site 8000
 ```
 

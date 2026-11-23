@@ -4,16 +4,16 @@ There are four levels. Each one is slower than the one before and closer to the 
 
 | Level | Command | Needs | Time |
 |---|---|---|---|
-| 1. Config check | `python3 -m scoreboard.check` | nothing | under a second |
+| 1. Config check | `python3 -m stealth_board.check` | nothing | under a second |
 | 2. Tests | `python3 -m unittest discover tests` | uv | about 10 seconds |
-| 3. Smoke run | `python3 -m scoreboard.run --target example --tries 1` | browsers, internet | a few minutes |
-| 4. Full run | `xvfb-run -a python3 -m scoreboard.run` | browsers, internet | hours |
+| 3. Smoke run | `python3 -m stealth_board.run --target example --tries 1` | browsers, internet | a few minutes |
+| 4. Full run | `xvfb-run -a python3 -m stealth_board.run` | browsers, internet | hours |
 
 Levels 1 and 2 also run on GitHub for every push and pull request (`.github/workflows/tests.yml`).
 
 ## 1. Config check
 
-Reads `scoreboard.toml` and lists every problem in plain words: a missing field, a target id used twice, an `expect` pattern that is not a valid regular expression, a tool with no adapter file. The runner does the same check before it starts, so a typo cannot waste a long run.
+Reads `board.toml` and lists every problem in plain words: a missing field, a target id used twice, an `expect` pattern that is not a valid regular expression, a tool with no adapter file. The runner does the same check before it starts, so a typo cannot waste a long run.
 
 ## 2. Tests
 
@@ -39,7 +39,7 @@ python3 -m unittest tests.test_run.RunnerTest.test_click_moves_a_challenge_forwa
 Starts every library once against a page with no protection. It proves that each library still installs, starts its browser and returns a page. If a library fails here, the problem is in its adapter or its newest release, not in any website.
 
 ```sh
-python3 -m scoreboard.run --target example --tries 1 --mode http --mode headless
+python3 -m stealth_board.run --target example --tries 1 --mode http --mode headless
 ```
 
 ## 4. Full run
@@ -53,7 +53,7 @@ This is the path for every new target. It takes about ten minutes.
 **Step 1. Look at the site.**
 
 ```sh
-python3 -m scoreboard.probe https://www.example-shop.com/
+python3 -m stealth_board.probe https://www.example-shop.com/
 ```
 
 ```
@@ -65,18 +65,18 @@ plain client: stopped (datadome captcha). This page tells tools apart, so it can
 
 The probe loads the page once with a plain client and changes no file. If it says the site does not block plain tools, the site is a weak target and you can stop here.
 
-**Step 2. Add a draft target** to `scoreboard.toml`. Guess the `expect` pattern for now. [add-a-target.md](add-a-target.md) explains each field.
+**Step 2. Add a draft target** to `board.toml`. Guess the `expect` pattern for now. [add-a-target.md](add-a-target.md) explains each field.
 
 **Step 3. Check the config.**
 
 ```sh
-python3 -m scoreboard.check
+python3 -m stealth_board.check
 ```
 
 **Step 4. See which tools get in, and save the pages.**
 
 ```sh
-python3 -m scoreboard.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug
+python3 -m stealth_board.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug
 ```
 
 Open the files in `debug/`. Take the `expect` text from a page where a tool got in, and make sure the block page does not have it. Run the command again until the results match what you see in the saved pages.
@@ -87,13 +87,13 @@ Open the files in `debug/`. Take the `expect` text from a page where a tool got 
 
 The verdict rules know the block pages we have met so far. For a new one:
 
-1. Add its marker to `CHALLENGES` or `BLOCKS` in `scoreboard/verdict.py`. A challenge still asks for a check. A block is a plain no.
+1. Add its marker to `CHALLENGES` or `BLOCKS` in `stealth_board/verdict.py`. A challenge still asks for a check. A block is a plain no.
 2. Save a small sample of the page in `tests/pages/`. Keep only the lines that matter, not the whole page.
 3. Add one line for it to `CASES` in `tests/test_verdict.py`.
 
 A test fails when a sample page has no case, so step 3 cannot be forgotten.
 
-For a new protection vendor, also add one line to `SIGNS` in `scoreboard/probe.py` and one case to `tests/test_probe.py`.
+For a new protection vendor, also add one line to `SIGNS` in `stealth_board/probe.py` and one case to `tests/test_probe.py`.
 
 ## Checking the click on a challenge box
 
@@ -118,8 +118,8 @@ Read it together with the result:
 Compare a run with clicks and one without:
 
 ```sh
-python3 -m scoreboard.run --target cloudflare-turnstile --tool patchright --tries 1
-python3 -m scoreboard.run --target cloudflare-turnstile --tool patchright --tries 1 --no-click
+python3 -m stealth_board.run --target cloudflare-turnstile --tool patchright --tries 1
+python3 -m stealth_board.run --target cloudflare-turnstile --tool patchright --tries 1 --no-click
 ```
 
 Only the Cloudflare check box is clicked today. DataDome and HUMAN show puzzles that need more than a click, so those tries end as a challenge.
@@ -129,7 +129,7 @@ Only the Cloudflare check box is clicked today. DataDome and HUMAN show puzzles 
 The numbers are covered by `tests/test_build.py`. The page itself is checked by eye:
 
 ```sh
-python3 -m scoreboard.build
+python3 -m stealth_board.build
 python3 -m http.server -d site 8000
 ```
 

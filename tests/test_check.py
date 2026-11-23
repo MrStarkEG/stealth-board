@@ -5,7 +5,7 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from scoreboard.check import problems
+from stealth_board.check import problems
 
 ROOT = Path(__file__).parent.parent
 GOOD = {
@@ -23,11 +23,11 @@ def broken(change):
 
 class CheckTest(unittest.TestCase):
     def test_the_real_config_is_fine(self):
-        config = tomllib.loads((ROOT / "scoreboard.toml").read_text())
+        config = tomllib.loads((ROOT / "board.toml").read_text())
         self.assertEqual(problems(config, ROOT / "adapters"), [])
 
     def test_every_adapter_file_is_in_the_config(self):
-        config = tomllib.loads((ROOT / "scoreboard.toml").read_text())
+        config = tomllib.loads((ROOT / "board.toml").read_text())
         files = {p.name.removesuffix("_adapter.py") for p in (ROOT / "adapters").glob("*_adapter.py")}
         self.assertEqual(files, {t["name"] for t in config["tool"]})
 

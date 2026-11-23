@@ -22,7 +22,7 @@ def get(u):
 
 status, html = get(url)
 clicked = False
-if "cf-turnstile" in html and os.environ["SCOREBOARD_CLICK"] == "1":
+if "cf-turnstile" in html and os.environ["STEALTH_BOARD_CLICK"] == "1":
     status, html = get(url + "?clicked=1")
     clicked = True
 json.dump({"status": status, "html": html, "clicked": clicked, "error": None}, open(outfile, "w"))

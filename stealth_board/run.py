@@ -1,7 +1,7 @@
 """Run tools against targets and save the results as JSON.
 
-    python -m scoreboard.run --runner local --ip-type residential
-    python -m scoreboard.run --tool patchright --target cloudflare-demo --tries 1
+    python -m stealth_board.run --runner local --ip-type residential
+    python -m stealth_board.run --tool patchright --target cloudflare-demo --tries 1
 """
 
 import argparse
@@ -17,8 +17,8 @@ import time
 import tomllib
 from pathlib import Path
 
-from scoreboard.check import problems
-from scoreboard.verdict import judge
+from stealth_board.check import problems
+from stealth_board.verdict import judge
 
 SETUP_TIMEOUT = 900  # browser downloads can be slow
 
@@ -103,7 +103,7 @@ def fetch_once(adapter, url, mode, timeout, debug_file, click=True):
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         # TMPDIR points into the temporary folder, so browser profiles land there and
         # are deleted with it, also when the browser was killed.
-        env = os.environ | {"SCOREBOARD_CLICK": "1" if click else "0", "TMPDIR": tmp}
+        env = os.environ | {"STEALTH_BOARD_CLICK": "1" if click else "0", "TMPDIR": tmp}
         outfile = Path(tmp) / "out.json"
         # Run inside the temporary folder, so files a tool drops land there and not in the repo.
         code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp, env=env)
@@ -150,7 +150,7 @@ def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", default="scoreboard.toml")
+    ap.add_argument("--config", default="board.toml")
     ap.add_argument("--adapters", default="adapters")
     ap.add_argument("--out", default="results")
     ap.add_argument("--runner", default="local", help="a short public name for where this runs")

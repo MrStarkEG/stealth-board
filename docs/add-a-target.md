@@ -1,6 +1,6 @@
 # Add a target
 
-A target is a few lines in `scoreboard.toml`:
+A target is a few lines in `board.toml`:
 
 ```toml
 # Confirmed: "x-datadome" header and a captcha-delivery.com page for plain clients.
@@ -28,12 +28,12 @@ expect = "<title[^>]*>Etsy"
 1. **Confirm the vendor from the response.** Do not guess. Run the probe, and write what it saw in a comment above the target:
 
    ```sh
-   python3 -m scoreboard.probe https://www.example-shop.com/
+   python3 -m stealth_board.probe https://www.example-shop.com/
    ```
 2. **Check that it tells tools apart.** Fetch it with a control and with a stealth tool, and save the pages:
 
    ```sh
-   python3 -m scoreboard.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug
+   python3 -m stealth_board.run --target NEW_ID --tool playwright --tool patchright --tool camoufox --tries 1 --debug-dir debug
    ```
 
    A good target blocks the control and lets at least one stealth tool in.

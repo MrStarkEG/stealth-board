@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   list-tools:
-    # Reads the tool names from scoreboard.toml, so a new tool needs no change here.
+    # Reads the tool names from board.toml, so a new tool needs no change here.
     runs-on: ubuntu-latest
     outputs:
       tools: ${{ steps.tools.outputs.tools }}
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v7
       - id: tools
         run: |
-          echo "tools=$(python3 -c "import json, tomllib; print(json.dumps([t['name'] for t in tomllib.load(open('scoreboard.toml', 'rb'))['tool']]))")" >> "$GITHUB_OUTPUT"
+          echo "tools=$(python3 -c "import json, tomllib; print(json.dumps([t['name'] for t in tomllib.load(open('board.toml', 'rb'))['tool']]))")" >> "$GITHUB_OUTPUT"
 
   test:
     # One job per tool. A tool that breaks cannot affect the others.
@@ -48,7 +48,7 @@ jobs:
           fi
           google-chrome --version
       - name: Run the tool against every target
-        run: xvfb-run -a -s "-screen 0 1920x1080x24" python3 -m scoreboard.run --tool "${{ matrix.tool }}" --runner github --ip-type datacenter
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" python3 -m stealth_board.run --tool "${{ matrix.tool }}" --runner github --ip-type datacenter
       - uses: actions/upload-artifact@v7
         with:
           name: results-${{ matrix.tool }}
@@ -82,7 +82,7 @@ jobs:
           git diff --cached --quiet || git commit -m "Add results for $(date -u +%F)"
           git push
       - name: Build the dashboard data
-        run: python3 -m scoreboard.build
+        run: python3 -m stealth_board.build
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site/

@@ -1,6 +1,6 @@
 """Turn the saved results into site/data.json for the dashboard.
 
-    python -m scoreboard.build
+    python -m stealth_board.build
 """
 
 import argparse
@@ -110,7 +110,7 @@ def build(records, config, today=None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--config", default="scoreboard.toml")
+    ap.add_argument("--config", default="board.toml")
     ap.add_argument("--results", default="results")
     ap.add_argument("--out", default="site/data.json")
     args = ap.parse_args()

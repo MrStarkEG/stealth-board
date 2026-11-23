@@ -4,7 +4,7 @@ This page follows one test from start to end.
 
 ## 1. The config
 
-[`scoreboard.toml`](../scoreboard.toml) lists the tools and the targets.
+[`board.toml`](../board.toml) lists the tools and the targets.
 
 A tool has a name and its modes. A target has a URL and an `expect` pattern, which is text that only the real page has.
 
@@ -29,11 +29,11 @@ The top of each script lists its dependencies:
 `uv` reads this and runs the script in its own environment. This gives us two things:
 
 - Tools never clash, even when two of them need different versions of the same package.
-- No version is pinned, so every run uses the newest release. That is the point of the scoreboard.
+- No version is pinned, so every run uses the newest release. That is the point of the board.
 
 ## 3. The runner
 
-`scoreboard/run.py` does this for each tool:
+`stealth_board/run.py` does this for each tool:
 
 1. Run `setup`. If it fails, save the tool as **broken** and go on to the next tool.
 2. For each mode, target and try, run `fetch` as a new process.
@@ -44,7 +44,7 @@ Every fetch is a new process with a new empty browser profile. Nothing is shared
 
 ## 4. The verdict
 
-`scoreboard/verdict.py` gives each try one of four results:
+`stealth_board/verdict.py` gives each try one of four results:
 
 | Result | Meaning |
 |---|---|
@@ -73,7 +73,7 @@ The file holds the tool version, the date, the runner name, the IP type (datacen
 
 ## 6. The dashboard
 
-`scoreboard/build.py` reads all result files and writes `site/data.json` with the 7 and 30 day pass rates. `site/index.html` reads that file and draws the table.
+`stealth_board/build.py` reads all result files and writes `site/data.json` with the 7 and 30 day pass rates. `site/index.html` reads that file and draws the table.
 
 The build also marks two kinds of weak targets:
 

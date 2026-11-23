@@ -14,7 +14,7 @@ After that it runs by itself every day at 05:17 UTC.
 
 ## What the workflow does
 
-- `list-tools` reads the tool names from `scoreboard.toml`.
+- `list-tools` reads the tool names from `board.toml`.
 - `test` runs one job per tool on a fresh Ubuntu machine, under a virtual screen. It installs Xvfb and Google Chrome itself.
 - `publish` collects the result files, commits them to `results/`, builds `site/data.json` and publishes `site/`.
 
@@ -32,7 +32,7 @@ A tool that crashes only fails its own job. The publish job still runs.
 A second runner on a home connection fills the "Residential IP" tab. Run this on any machine, then commit the new files in `results/`:
 
 ```sh
-xvfb-run -a python3 -m scoreboard.run --runner home --ip-type residential
+xvfb-run -a python3 -m stealth_board.run --runner home --ip-type residential
 git add results && git commit -m "Add residential results" && git push
 ```
 

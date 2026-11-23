@@ -2,7 +2,7 @@
 
 import unittest
 
-from scoreboard.build import build
+from stealth_board.build import build
 
 CONFIG = {
     "tool": [

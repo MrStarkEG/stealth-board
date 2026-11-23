@@ -26,9 +26,9 @@
 ## Check that things still work after a change
 
 ```sh
-python3 -m scoreboard.check
+python3 -m stealth_board.check
 python3 -m unittest discover tests
-python3 -m scoreboard.run --target example --tries 1
+python3 -m stealth_board.run --target example --tries 1
 ```
 
 The first two need no network. The third starts every library once against an open page. [testing.md](testing.md) explains each level.
