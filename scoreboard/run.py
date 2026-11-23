@@ -21,11 +21,11 @@ from scoreboard.verdict import judge
 SETUP_TIMEOUT = 900  # browser downloads can be slow
 
 
-def call(cmd, timeout):
+def call(cmd, timeout, cwd=None):
     """Run cmd in its own process group. Return (returncode, stdout, stderr).
     returncode is None on timeout. The whole group is always killed at the end,
     so no browser is left running."""
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True) as p:
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True, cwd=cwd) as p:
         try:
             out, err = p.communicate(timeout=timeout)
             return p.returncode, out, err
@@ -50,7 +50,8 @@ def fetch_once(adapter, url, mode, timeout, debug_file):
     """One try. Return (status, html, error)."""
     with tempfile.TemporaryDirectory() as tmp:
         outfile = Path(tmp) / "out.json"
-        code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout)
+        # Run inside the temporary folder, so files a tool drops land there and not in the repo.
+        code, _, err = call(["uv", "run", "--quiet", str(adapter), "fetch", url, mode, str(outfile)], timeout, cwd=tmp)
         if not outfile.exists():
             return None, "", scrub(err) if err.strip() else f"adapter exit code {code}"
         result = json.loads(outfile.read_text())
@@ -64,7 +65,7 @@ def fetch_once(adapter, url, mode, timeout, debug_file):
 def run_tool(tool, targets, config, adapters_dir, debug_dir=None):
     """Return the result record for one tool."""
     # The "_adapter" suffix stops the script from hiding the package it imports.
-    adapter = Path(adapters_dir) / f"{tool['name']}_adapter.py"
+    adapter = (Path(adapters_dir) / f"{tool['name']}_adapter.py").resolve()
     record = {"tool": tool["name"], "version": None, "setup": "ok", "setup_error": None, "modes": {}}
     code, out, err = call(["uv", "run", "--quiet", "--refresh", str(adapter), "setup"], SETUP_TIMEOUT)
     if code != 0:
